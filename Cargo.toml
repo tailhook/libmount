@@ -1,0 +1,26 @@
+[package]
+name = "libmount"
+description = """
+    The type-safe wrapper around mount system call
+"""
+license = "MIT/Apache-2.0"
+readme = "README.rst"
+keywords = ["linux", "container", "mount", "volume", "filesystem"]
+homepage = "http://github.com/tailhook/libmount"
+documentation = "http://tailhook.github.io/libmount/"
+version = "0.1.0"
+authors = ["paul@colomiets.name"]
+
+[dependencies]
+libc = "0.2.9"
+nix = "0.5.0"
+log = "0.3.6"
+
+[dev-dependencies]
+argparse = "0.2.1"
+env_logger = "0.3.3"
+
+[lib]
+name = "libmount"
+path = "src/lib.rs"
+
