@@ -24,11 +24,13 @@ mod util;
 mod error;
 mod explain;
 mod bind;
+mod overlay;
 
 use std::io;
 
 use explain::Explainable;
 pub use bind::BindMount;
+pub use overlay::Overlay;
 
 /// The raw os error
 ///

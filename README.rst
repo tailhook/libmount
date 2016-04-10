@@ -17,7 +17,7 @@ Goals:
 Features:
 
 * [x] Bind Mounts
-* [ ] OverlayFS
+* [x] OverlayFS
 * [ ] Tmpfs
 * [ ] Pseudo file systems: ``proc``, ``sys``
 * [ ] ``umount`` and ``umount2``

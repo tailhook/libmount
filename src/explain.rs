@@ -1,19 +1,17 @@
 use std::io::Read;
 use std::fs::File;
 use std::fmt::{Display, Debug};
-use std::ffi::CString;
+use std::path::Path;
 
 use nix::unistd::getuid;
-
-use util::as_path;
 
 
 pub trait Explainable: Display + Debug {
     fn explain(&self) -> String;
 }
 
-pub fn exists(path: &CString) -> &'static str {
-    if as_path(path).exists() {
+pub fn exists(path: &Path) -> &'static str {
+    if path.exists() {
         "exists"
     } else {
         "missing"

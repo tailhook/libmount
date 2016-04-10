@@ -4,12 +4,13 @@ use std::ptr::null;
 use std::ffi::CString;
 use std::path::Path;
 
+use libc::mount;
+use nix::mount as flags;
+
 use {OSError, Error};
 use util::{path_to_cstring, as_path};
 use explain::{Explainable, exists, user};
 
-use libc::mount;
-use nix::mount as flags;
 
 /// A mount bind definition
 ///
@@ -80,8 +81,8 @@ impl fmt::Display for BindMount {
 impl Explainable for BindMount {
     fn explain(&self) -> String {
         [
-            format!("source: {}", exists(&self.source)),
-            format!("target: {}", exists(&self.target)),
+            format!("source: {}", exists(as_path(&self.source))),
+            format!("target: {}", exists(as_path(&self.target))),
             format!("{}", user()),
         ].join(", ")
     }
