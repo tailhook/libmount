@@ -25,12 +25,14 @@ mod error;
 mod explain;
 mod bind;
 mod overlay;
+mod tmpfs;
 
 use std::io;
 
 use explain::Explainable;
 pub use bind::BindMount;
 pub use overlay::Overlay;
+pub use tmpfs::Tmpfs;
 
 /// The raw os error
 ///
