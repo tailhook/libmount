@@ -18,13 +18,15 @@ Features:
 
 * [x] Bind Mounts
 * [x] OverlayFS
-* [ ] Tmpfs
+* [x] Tmpfs
 * [ ] Pseudo file systems: ``proc``, ``sys``
 * [ ] ``umount`` and ``umount2``
 * [ ] Parser of ``/proc/PID/mountinfo``
 * [ ] Read-only mounts (remount)
 * [ ] Ext2/3/4
 * [ ] Btrfs
+* [ ] Support of mount flags throught trait
+* [ ] Fuse
 
 
 =======
