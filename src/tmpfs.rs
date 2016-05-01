@@ -3,10 +3,8 @@ use std::fmt;
 use std::str::from_utf8;
 use std::ffi::CString;
 use std::path::Path;
-use std::os::unix::raw::{uid_t, gid_t};
-use std::os::linux::raw::mode_t;
 
-use libc::c_void;
+use libc::{c_void, uid_t, gid_t, mode_t};
 use libc::mount;
 use nix::mount::{self as flags, MsFlags};
 
