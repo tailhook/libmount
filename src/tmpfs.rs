@@ -101,13 +101,13 @@ impl Tmpfs {
             if cur.position() != 0 {
                 cur.write(b",").unwrap();
             }
-            write!(cur, "uid={:04o}", uid).unwrap();
+            write!(cur, "uid={}", uid).unwrap();
         }
         if let Some(gid) = self.gid {
             if cur.position() != 0 {
                 cur.write(b",").unwrap();
             }
-            write!(cur, "gid={:04o}", gid).unwrap();
+            write!(cur, "gid={}", gid).unwrap();
         }
         return cur.into_inner();
     }
@@ -152,3 +152,21 @@ impl Explainable for Tmpfs {
     }
 }
 
+
+mod test {
+    #[cfg(test)]
+    use super::Tmpfs;
+    
+    #[test]
+    fn test_tmpfs_options() {
+        let fs = Tmpfs::new("/tmp")
+            .size_bytes(1 << 20)
+            .nr_inodes(1024)
+            .mode(0o1777)
+            .uid(1000)
+            .gid(1000);
+
+        assert_eq!(fs.format_options(),
+            "size=1048576,nr_inodes=1024,mode=01777,uid=1000,gid=1000".as_bytes())
+    }
+}
