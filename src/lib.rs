@@ -26,6 +26,7 @@ mod explain;
 mod bind;
 mod overlay;
 mod tmpfs;
+mod modify;
 
 use std::io;
 
@@ -33,6 +34,7 @@ use explain::Explainable;
 pub use bind::BindMount;
 pub use overlay::Overlay;
 pub use tmpfs::Tmpfs;
+pub use modify::Move;
 
 /// The raw os error
 ///
