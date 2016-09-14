@@ -18,7 +18,6 @@
 
 extern crate libc;
 extern crate nix;
-extern crate log;
 
 mod util;
 mod error;
