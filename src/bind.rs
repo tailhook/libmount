@@ -22,6 +22,7 @@ pub struct BindMount {
     source: CString,
     target: CString,
     recursive: bool,
+    readonly: bool,
 }
 
 impl BindMount {
@@ -35,11 +36,17 @@ impl BindMount {
             source: path_to_cstring(source.as_ref()),
             target: path_to_cstring(target.as_ref()),
             recursive: true,
+            readonly: false,
         }
     }
     /// Toggle recursion
     pub fn recursive(mut self, flag: bool) -> BindMount {
         self.recursive = flag;
+        self
+    }
+    /// Set readonly flag
+    pub fn readonly(mut self, flag: bool) -> BindMount {
+        self.readonly = flag;
         self
     }
 
@@ -48,6 +55,9 @@ impl BindMount {
         let mut flags = flags::MS_BIND;
         if self.recursive {
             flags = flags | flags::MS_REC;
+        }
+        if self.readonly {
+            flags = flags | flags::MS_RDONLY;
         }
         let rc = unsafe { mount(
                 self.source.as_ptr(),
@@ -70,8 +80,13 @@ impl BindMount {
 
 impl fmt::Display for BindMount {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let mut opt_prefix = "";
         if self.recursive {
             try!(write!(fmt, "recursive "));
+            opt_prefix = ",";
+        }
+        if self.readonly {
+            try!(write!(fmt, "{}ro ", opt_prefix));
         }
         write!(fmt, "bind mount {:?} -> {:?}",
             as_path(&self.source), as_path(&self.target))
