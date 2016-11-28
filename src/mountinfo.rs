@@ -11,11 +11,12 @@ use libc::{MS_MANDLOCK, MS_DIRSYNC, MS_NOATIME, MS_NODIRATIME};
 use libc::{MS_RELATIME, MS_STRICTATIME};
 
 #[derive(Debug)]
-pub struct ParseError(String);
+pub struct ParseError(String, usize, String);
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "ParseError: {}", self.description())
+        write!(f, "Parse error at line {}: {}\n{}", 
+            self.1, self.description(), self.2)
     }
 }
 
@@ -88,24 +89,20 @@ impl<'a> Iterator for MountInfoParser<'a> {
             match self.data.iter().position(|c| *c == b'\n') {
                 Some(ix) => {
                     self.row_num += 1;
-                    let row = &self.data[..ix];
+                    let row = strip_line(&self.data[..ix]);
                     self.data = &self.data[ix + 1..];
-                    let row = if row.ends_with(&[b'\r']) {
-                        &row[..row.len() - 1]
-                    } else {
-                        row
-                    };
-                    if row.is_empty() {
+                    if is_comment_line(row) {
                         continue;
                     }
-                    return Some(parse_mount_info(row));
+                    return Some(parse_mount_point(row, self.row_num));
                 },
                 None => {
                     self.exhausted = true;
-                    if self.data.is_empty() {
+                    let row = strip_line(&self.data);
+                    if is_comment_line(row) {
                         return None;
                     } else {
-                        return Some(parse_mount_info(&self.data));
+                        return Some(parse_mount_point(row, self.row_num));
                     }
                 },
             }
@@ -113,30 +110,33 @@ impl<'a> Iterator for MountInfoParser<'a> {
     }
 }
 
-fn parse_mount_info(row: &[u8]) -> Result<MountPoint, ParseError> {
+fn parse_mount_point(row: &[u8], row_num: usize)
+     -> Result<MountPoint, ParseError> 
+{
     let invalid_format = || {
-        ParseError(format!("Expected more values"))
+        ParseError(format!("Expected more fields"), row_num, 
+            String::from_utf8_lossy(row).into_owned())
     };
 
     let mut cols = row.split(|c| *c == b' ');
-    let mount_id = try!(parse_int(&mut cols, row));
-    let parent_id = try!(parse_int(&mut cols, row));
+    let mount_id = try!(parse_int(&mut cols, row, row_num));
+    let parent_id = try!(parse_int(&mut cols, row, row_num));
     let mut major_minor = try!(cols.next().ok_or_else(&invalid_format))
         .split(|c| *c == b':');
-    let major = try!(parse_int(&mut major_minor, row));
-    let minor = try!(parse_int(&mut major_minor, row));
-    let root = try!(parse_path(&mut cols, row));
-    let mount_point = try!(parse_path(&mut cols, row));
-    let mount_options = try!(parse_os_str(&mut cols, row));
+    let major = try!(parse_int(&mut major_minor, row, row_num));
+    let minor = try!(parse_int(&mut major_minor, row, row_num));
+    let root = try!(parse_path(&mut cols, row, row_num));
+    let mount_point = try!(parse_path(&mut cols, row, row_num));
+    let mount_options = try!(parse_os_str(&mut cols, row, row_num));
     let mut optional_fields = vec!();
-    let mut opt_field = try!(parse_os_str(&mut cols, row));
+    let mut opt_field = try!(parse_os_str(&mut cols, row, row_num));
     while opt_field != OsStr::new("-") {
         optional_fields.push(opt_field.clone());
-        opt_field = try!(parse_os_str(&mut cols, row));
+        opt_field = try!(parse_os_str(&mut cols, row, row_num));
     }
-    let fstype = try!(parse_os_str(&mut cols, &row));
-    let mount_source = try!(parse_os_str(&mut cols, &row));
-    let super_options = try!(parse_os_str(&mut cols, &row));
+    let fstype = try!(parse_os_str(&mut cols, &row, row_num));
+    let mount_source = try!(parse_os_str(&mut cols, &row, row_num));
+    let super_options = try!(parse_os_str(&mut cols, &row, row_num));
     Ok(MountPoint {
         mount_id: mount_id,
         parent_id: parent_id,
@@ -152,58 +152,79 @@ fn parse_mount_info(row: &[u8]) -> Result<MountPoint, ParseError> {
     })
 }
 
-fn parse_os_str(columns: &mut Iterator<Item=&[u8]>, row: &[u8])
+fn is_comment_line(row: &[u8]) -> bool {
+    if row.is_empty() {
+        return true;
+    }
+    for c in row {
+        if *c == b' ' || *c == b'\t' {
+            continue;
+        }
+        if *c == b'#' {
+            return true;
+        }
+        return false;
+    }
+    return false;
+}
+
+fn strip_line(row: &[u8]) -> &[u8] {
+    let mut row = row;
+    while row.ends_with(&[b'\r']) {
+        row = &row[..row.len() - 1]
+    }
+    row
+}
+
+fn parse_os_str(columns: &mut Iterator<Item=&[u8]>, row: &[u8], row_num: usize)
     -> Result<OsString, ParseError>
 {
     let bytes = try!(columns.next()
         .ok_or_else(|| ParseError(
-            format!("Expected more values in row: {:?}",
-                String::from_utf8_lossy(row)))));
+            format!("Expected more fields"),
+            row_num, String::from_utf8_lossy(row).into_owned())));
     let mut value = Cow::Borrowed(bytes);
-    try!(unescape_octals(&mut value));
+    unescape_octals(&mut value);
     Ok(OsString::from_vec(value.into_owned()))
 }
 
-fn parse_int(columns: &mut Iterator<Item=&[u8]>, row: &[u8])
+fn parse_int(columns: &mut Iterator<Item=&[u8]>, row: &[u8], row_num: usize)
     -> Result<c_ulong, ParseError>
 {
     let col = try!(columns.next()
         .ok_or_else(|| ParseError(
-            format!("Expected more values for row: {:?}",
-                String::from_utf8_lossy(row))))
+            format!("Expected more fields"),
+            row_num, String::from_utf8_lossy(row).into_owned()))
         .map(|v| String::from_utf8_lossy(v)));
     col.parse::<c_ulong>()
         .map_err(|_| ParseError(
-            format!("Cannot parse integer from {:?}: {:?}",
-                col, String::from_utf8_lossy(row))))
+            format!("Cannot parse integer: {:?}", col),
+            row_num, String::from_utf8_lossy(row).into_owned()))
 }
 
-fn parse_path(columns: &mut Iterator<Item=&[u8]>, row: &[u8])
+fn parse_path(columns: &mut Iterator<Item=&[u8]>, row: &[u8], row_num: usize)
     -> Result<PathBuf, ParseError>
 {
-    Ok(PathBuf::from(try!(parse_os_str(columns, row))))
+    Ok(PathBuf::from(try!(parse_os_str(columns, row, row_num))))
 }
 
-fn unescape_octals(v: &mut Cow<[u8]>) -> Result<(), ParseError>{
+fn unescape_octals(v: &mut Cow<[u8]>) {
     let mut i = 0;
-    loop {
-        if v[i] == b'\\' {
-            let tail = v.to_mut().split_off(i);
-            if tail.len() < 4 {
-                return Err(ParseError(format!("Invalid escaping")));
-            }
-            let oct = String::from_utf8_lossy(&tail[1..4]);
-            let b = try!(u8::from_str_radix(&oct, 8)
-                .map_err(|_| ParseError(format!("Expected octal number"))));
+    while i < v.len() {
+        if v[i] == b'\\' && v[i..].len() >= 4
+            && is_oct(v[i+1]) && is_oct(v[i+2]) && is_oct(v[i+3])
+        {
+            let t = v.to_mut().split_off(i);
+            let b = ((t[1] & 7) << 6) + ((t[2] & 7) << 3) + (t[3] & 7);
             v.to_mut().push(b);
-            v.to_mut().extend_from_slice(&tail[4..]);
+            v.to_mut().extend_from_slice(&t[4..]);
         }
         i += 1;
-        if i >= v.len() {
-            break;
-        }
     }
-    Ok(())
+}
+
+fn is_oct(c: u8) -> bool {
+    c >= b'0' && c <= b'7'
 }
 
 #[cfg(test)]
@@ -227,6 +248,28 @@ mod test {
         assert_eq!(mount_point.minor, 4);
         assert_eq!(mount_point.root, Path::new("/"));
         assert_eq!(mount_point.mount_point, Path::new("/proc"));
+        assert_eq!(mount_point.mount_options, OsStr::new("rw,nosuid,nodev,noexec,relatime"));
+        assert_eq!(mount_point.optional_fields, vec!(OsStr::new("shared:12")));
+        assert_eq!(mount_point.fstype, OsStr::new("proc"));
+        assert_eq!(mount_point.mount_source, OsStr::new("proc"));
+        assert_eq!(mount_point.super_options, OsStr::new("rw"));
+        assert_eq!(mount_point.get_flags(), MS_NOSUID | MS_NODEV | MS_NOEXEC | MS_RELATIME);
+        assert!(parser.next().is_none());
+    }
+
+    #[test]
+    fn test_mount_info_parser_comment() {
+        let content = b"# Test comment\n\
+                        \t # Another shifted comment\n\
+                        19 24 0:4 / /#proc rw,nosuid,nodev,noexec,relatime shared:12 - proc proc rw";
+        let mut parser = MountInfoParser::new(&content[..]);
+        let mount_point = parser.next().unwrap().unwrap();
+        assert_eq!(mount_point.mount_id, 19);
+        assert_eq!(mount_point.parent_id, 24);
+        assert_eq!(mount_point.major, 0);
+        assert_eq!(mount_point.minor, 4);
+        assert_eq!(mount_point.root, Path::new("/"));
+        assert_eq!(mount_point.mount_point, Path::new("/#proc"));
         assert_eq!(mount_point.mount_options, OsStr::new("rw,nosuid,nodev,noexec,relatime"));
         assert_eq!(mount_point.optional_fields, vec!(OsStr::new("shared:12")));
         assert_eq!(mount_point.fstype, OsStr::new("proc"));
@@ -275,7 +318,7 @@ mod test {
 
     #[test]
     fn test_mount_info_parser_escaping() {
-        let content = br"76 24 8:6 / /home/my\040super\134name rw,relatime shared:29 - ext4 /dev/sda1 rw,data=ordered";
+        let content = br"76 24 8:6 / /home/my\040super\011name\012\134 rw,relatime shared:29 - ext4 /dev/sda1 rw,data=ordered";
         let mut parser = MountInfoParser::new(&content[..]);
         let mount_point = parser.next().unwrap().unwrap();
         assert_eq!(mount_point.mount_id, 76);
@@ -283,7 +326,7 @@ mod test {
         assert_eq!(mount_point.major, 8);
         assert_eq!(mount_point.minor, 6);
         assert_eq!(mount_point.root, Path::new("/"));
-        assert_eq!(mount_point.mount_point, Path::new("/home/my super\\name"));
+        assert_eq!(mount_point.mount_point, Path::new("/home/my super\tname\n\\"));
         assert_eq!(mount_point.mount_options, OsStr::new("rw,relatime"));
         assert_eq!(mount_point.optional_fields, vec!(OsStr::new("shared:29")));
         assert_eq!(mount_point.fstype, OsStr::new("ext4"));
@@ -294,7 +337,7 @@ mod test {
     }
 
     #[test]
-    fn test_mounts_parser_non_utf8() {
+    fn test_mount_info_parser_non_utf8() {
         let content = b"22 24 0:19 / /\xff rw shared:5 - tmpfs tmpfs rw,mode=755";
         let mut parser = MountInfoParser::new(&content[..]);
         let mount_point = parser.next().unwrap().unwrap();
@@ -307,10 +350,10 @@ mod test {
     }
 
     #[test]
-    fn test_mounts_parser_crlf() {
+    fn test_mount_info_parser_crlf() {
         let content = b"26 20 0:21 / /tmp rw shared:4 - tmpfs tmpfs rw\r\n\
-                        \n\
-                        27 22 0:22 / /tmp rw,nosuid,nodev shared:6 - tmpfs tmpfs rw\n";
+                        \r\n\
+                        27 22 0:22 / /tmp rw,nosuid,nodev shared:6 - tmpfs tmpfs rw\r\r";
         let mut parser = MountInfoParser::new(&content[..]);
         let mount_point = parser.next().unwrap().unwrap();
         assert_eq!(mount_point.mount_point, Path::new("/tmp"));
@@ -327,12 +370,14 @@ mod test {
 
     #[test]
     fn test_mount_info_parser_incomplete_row() {
-        let content = b"19 24 0:4 / /proc rw,nosuid,nodev,noexec,relatime shared:12 - proc proc";
+        let content = b"19 24 0:4 / /proc rw,relatime shared:12 - proc proc";
         let mut parser = MountInfoParser::new(&content[..]);
         let mount_info_res = parser.next().unwrap();
         assert!(mount_info_res.is_err());
         match mount_info_res {
-            Err(ParseError(..)) => {}
+            Err(ParseError(ref msg, _, _)) => {
+                assert_eq!(msg, "Expected more fields");
+            },
             _ => panic!("Expected incomplete row error")
         }
         assert!(parser.next().is_none());
@@ -340,12 +385,14 @@ mod test {
 
     #[test]
     fn test_mount_info_parser_invalid_int() {
-        let content = b"19 24b 0:4 / /proc rw,nosuid,nodev,noexec,relatime shared:12 - proc proc rw";
+        let content = b"19 24b 0:4 / /proc rw,relatime - proc proc rw";
         let mut parser = MountInfoParser::new(&content[..]);
         let mount_info_res = parser.next().unwrap();
         assert!(mount_info_res.is_err());
         match mount_info_res {
-            Err(ParseError(..)) => {}
+            Err(ParseError(ref msg, _, _)) => {
+                assert_eq!(msg, "Cannot parse integer: \"24b\"");
+            },
             _ => panic!("Expected invalid row error")
         }
         assert!(parser.next().is_none());
@@ -353,14 +400,19 @@ mod test {
 
     #[test]
     fn test_mount_info_parser_invalid_escape() {
-        let content = b"19 24 0:4 / /proc\\01 rw,nosuid,nodev,noexec,relatime shared:12 - proc proc rw";
+        let content = b"19 24 0:4 / /proc\\1 rw,relatime - proc proc rw";
         let mut parser = MountInfoParser::new(&content[..]);
-        let mount_info_res = parser.next().unwrap();
-        assert!(mount_info_res.is_err());
-        match mount_info_res {
-            Err(ParseError(..)) => {}
-            _ => panic!("Expected invalid row error")
-        }
+        let mount_point = parser.next().unwrap().unwrap();
+        assert_eq!(mount_point.mount_point, Path::new("/proc\\1"));
+        assert!(parser.next().is_none());
+    }
+
+    #[test]
+    fn test_mount_info_parser_overflowed_escape() {
+        let content = b"19 24 0:4 / /proc\\400 rw,nosuid,nodev,noexec,relatime - proc proc rw";
+        let mut parser = MountInfoParser::new(&content[..]);
+        let mount_point = parser.next().unwrap().unwrap();
+        assert_eq!(mount_point.mount_point, Path::new(OsStr::from_bytes(b"/proc\x00")));
         assert!(parser.next().is_none());
     }
 }

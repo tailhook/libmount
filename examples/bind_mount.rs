@@ -17,7 +17,7 @@ fn main() {
     let mut readonly = false;
     {
         let mut ap = ArgumentParser::new();
-        ap.set_description("Bind mouting utility. Similar to `mount --bind`");
+        ap.set_description("Bind mounting utility. Similar to `mount --bind`");
         ap.refer(&mut source).add_argument("source", Parse,
             "Source directory for bind mount").required();
         ap.refer(&mut target).add_argument("target", Parse,
