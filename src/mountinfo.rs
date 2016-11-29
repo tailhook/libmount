@@ -1,3 +1,4 @@
+use std;
 use std::fmt;
 use std::ffi::{OsStr, OsString};
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
@@ -11,18 +12,32 @@ use libc::{MS_MANDLOCK, MS_DIRSYNC, MS_NOATIME, MS_NODIRATIME};
 use libc::{MS_RELATIME, MS_STRICTATIME};
 
 #[derive(Debug)]
-pub struct ParseError(String, usize, String);
+pub struct ParseError {
+    msg: String,
+    row_num: usize,
+    row: String,
+}
+
+impl ParseError {
+    pub fn new(msg: String, row_num: usize, row: String) -> ParseError {
+        ParseError {
+            msg: msg,
+            row_num: row_num,
+            row: row,
+        }
+    }
+}
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Parse error at line {}: {}\n{}", 
-            self.1, self.description(), self.2)
+            self.row_num, self.description(), self.row)
     }
 }
 
 impl Error for ParseError {
     fn description(&self) -> &str {
-        return &self.0;
+        return &self.msg;
     }
 }
 
@@ -114,7 +129,8 @@ fn parse_mount_point(row: &[u8], row_num: usize)
      -> Result<MountPoint, ParseError> 
 {
     let invalid_format = || {
-        ParseError(format!("Expected more fields"), row_num, 
+        ParseError::new(format!("Expected more fields"),
+            row_num,
             String::from_utf8_lossy(row).into_owned())
     };
 
@@ -180,7 +196,7 @@ fn parse_os_str(columns: &mut Iterator<Item=&[u8]>, row: &[u8], row_num: usize)
     -> Result<OsString, ParseError>
 {
     let bytes = try!(columns.next()
-        .ok_or_else(|| ParseError(
+        .ok_or_else(|| ParseError::new(
             format!("Expected more fields"),
             row_num, String::from_utf8_lossy(row).into_owned())));
     let mut value = Cow::Borrowed(bytes);
@@ -192,39 +208,21 @@ fn parse_int(columns: &mut Iterator<Item=&[u8]>, row: &[u8], row_num: usize)
     -> Result<c_ulong, ParseError>
 {
     let col = try!(columns.next()
-        .ok_or_else(|| ParseError(
+        .ok_or_else(|| ParseError::new(
             format!("Expected more fields"),
             row_num, String::from_utf8_lossy(row).into_owned())));
 
-    let parse_error = || {
-        return ParseError(
-            format!("Cannot parse integer: {:?}",
-                    String::from_utf8_lossy(col).into_owned()),
-            row_num, String::from_utf8_lossy(row).into_owned());
-    };
+    let field = try!(std::str::from_utf8(col).map_err(|e| {
+        ParseError::new(
+            format!("Cannot parse integer {:?}: {}",
+                String::from_utf8_lossy(col).into_owned(), e),
+            row_num, String::from_utf8_lossy(row).into_owned())}));
 
-    let mut num: c_ulong = 0;
-    let mut base: u64 = 1;
-    for (i, c) in col.iter().rev().enumerate() {
-        if !is_digit(*c) {
-            return Err(parse_error());
-        }
-        if i > 0 {
-            base = match u64::overflowing_mul(10, base) {
-                (v, false) => v,
-                (_, true) => return Err(parse_error()),
-            };
-        }
-        let d = match u64::overflowing_mul(base, *c as u64 - b'0' as u64) {
-            (v, false) => v,
-            (_, true) => return Err(parse_error()),
-        };
-        num = match u64::overflowing_add(d, num) {
-            (v, false) => v,
-            (_, true) => return Err(parse_error()),
-        };
-    }
-    Ok(num)
+    u64::from_str_radix(field, 10).map_err(|e| {
+        ParseError::new(
+            format!("Cannot parse integer {:?}: {}",
+                    String::from_utf8_lossy(col).into_owned(), e),
+            row_num, String::from_utf8_lossy(row).into_owned())})
 }
 
 fn parse_path(columns: &mut Iterator<Item=&[u8]>, row: &[u8], row_num: usize)
@@ -250,10 +248,6 @@ fn unescape_octals(v: &mut Cow<[u8]>) {
 
 fn is_oct(c: u8) -> bool {
     c >= b'0' && c <= b'7'
-}
-
-fn is_digit(c: u8) -> bool {
-    c >= b'0' && c <= b'9'
 }
 
 #[cfg(test)]
@@ -404,7 +398,7 @@ mod test {
         let mount_info_res = parser.next().unwrap();
         assert!(mount_info_res.is_err());
         match mount_info_res {
-            Err(ParseError(ref msg, _, _)) => {
+            Err(ParseError {ref msg, ..}) => {
                 assert_eq!(msg, "Expected more fields");
             },
             _ => panic!("Expected incomplete row error")
@@ -419,8 +413,8 @@ mod test {
         let mount_info_res = parser.next().unwrap();
         assert!(mount_info_res.is_err());
         match mount_info_res {
-            Err(ParseError(ref msg, _, _)) => {
-                assert_eq!(msg, "Cannot parse integer: \"24b\"");
+            Err(ParseError {ref msg, ..}) => {
+                assert!(msg.starts_with("Cannot parse integer \"24b\":"));
             },
             _ => panic!("Expected invalid row error")
         }
@@ -434,8 +428,8 @@ mod test {
         let mount_info_res = parser.next().unwrap();
         assert!(mount_info_res.is_err());
         match mount_info_res {
-            Err(ParseError(ref msg, _, _)) => {
-                assert_eq!(msg, "Cannot parse integer: \"111111111111111111111\"");
+            Err(ParseError {ref msg, ..}) => {
+                assert!(msg.starts_with("Cannot parse integer \"111111111111111111111\""));
             },
             _ => panic!("Expected invalid row error")
         }
