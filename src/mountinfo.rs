@@ -194,12 +194,37 @@ fn parse_int(columns: &mut Iterator<Item=&[u8]>, row: &[u8], row_num: usize)
     let col = try!(columns.next()
         .ok_or_else(|| ParseError(
             format!("Expected more fields"),
-            row_num, String::from_utf8_lossy(row).into_owned()))
-        .map(|v| String::from_utf8_lossy(v)));
-    col.parse::<c_ulong>()
-        .map_err(|_| ParseError(
-            format!("Cannot parse integer: {:?}", col),
-            row_num, String::from_utf8_lossy(row).into_owned()))
+            row_num, String::from_utf8_lossy(row).into_owned())));
+
+    let parse_error = || {
+        return ParseError(
+            format!("Cannot parse integer: {:?}",
+                    String::from_utf8_lossy(col).into_owned()),
+            row_num, String::from_utf8_lossy(row).into_owned());
+    };
+
+    let mut num: c_ulong = 0;
+    let mut base: u64 = 1;
+    for (i, c) in col.iter().rev().enumerate() {
+        if !is_digit(*c) {
+            return Err(parse_error());
+        }
+        if i > 0 {
+            base = match u64::overflowing_mul(10, base) {
+                (v, false) => v,
+                (_, true) => return Err(parse_error()),
+            };
+        }
+        let d = match u64::overflowing_mul(base, *c as u64 - b'0' as u64) {
+            (v, false) => v,
+            (_, true) => return Err(parse_error()),
+        };
+        num = match u64::overflowing_add(d, num) {
+            (v, false) => v,
+            (_, true) => return Err(parse_error()),
+        };
+    }
+    Ok(num)
 }
 
 fn parse_path(columns: &mut Iterator<Item=&[u8]>, row: &[u8], row_num: usize)
@@ -225,6 +250,10 @@ fn unescape_octals(v: &mut Cow<[u8]>) {
 
 fn is_oct(c: u8) -> bool {
     c >= b'0' && c <= b'7'
+}
+
+fn is_digit(c: u8) -> bool {
+    c >= b'0' && c <= b'9'
 }
 
 #[cfg(test)]
@@ -392,6 +421,21 @@ mod test {
         match mount_info_res {
             Err(ParseError(ref msg, _, _)) => {
                 assert_eq!(msg, "Cannot parse integer: \"24b\"");
+            },
+            _ => panic!("Expected invalid row error")
+        }
+        assert!(parser.next().is_none());
+    }
+
+    #[test]
+    fn test_mount_info_parser_overflowed_int() {
+        let content = b"111111111111111111111";
+        let mut parser = MountInfoParser::new(&content[..]);
+        let mount_info_res = parser.next().unwrap();
+        assert!(mount_info_res.is_err());
+        match mount_info_res {
+            Err(ParseError(ref msg, _, _)) => {
+                assert_eq!(msg, "Cannot parse integer: \"111111111111111111111\"");
             },
             _ => panic!("Expected invalid row error")
         }
