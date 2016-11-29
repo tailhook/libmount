@@ -6,7 +6,7 @@ extern crate env_logger;
 use std::path::PathBuf;
 use std::process::exit;
 
-use argparse::{ArgumentParser, Parse, StoreFalse, StoreTrue};
+use argparse::{ArgumentParser, Parse, StoreFalse};
 
 
 fn main() {
@@ -14,7 +14,6 @@ fn main() {
     let mut source = PathBuf::new();
     let mut target = PathBuf::new();
     let mut recursive = true;
-    let mut readonly = false;
     {
         let mut ap = ArgumentParser::new();
         ap.set_description("Bind mounting utility. Similar to `mount --bind`");
@@ -24,13 +23,10 @@ fn main() {
             "Target directory for bind mount").required();
         ap.refer(&mut recursive).add_option(&["--non-recursive"], StoreFalse,
             "Disable recursive mount (only a real superuser can do this)");
-        ap.refer(&mut readonly).add_option(&["--readonly"], StoreTrue,
-            "Readonly mount");
         ap.parse_args_or_exit();
     }
     match libmount::BindMount::new(source, target)
         .recursive(recursive)
-        .readonly(readonly)
         .mount()
     {
         Ok(()) => {}
