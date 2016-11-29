@@ -66,10 +66,23 @@ impl BindMount {
                 flags.bits(),
                 null()) };
         if rc < 0 {
-            Err(OSError(io::Error::last_os_error(), Box::new(self)))
-        } else {
-            Ok(())
+            return Err(OSError(io::Error::last_os_error(), Box::new(self)));
         }
+        // do additional mount cause kernel just silently ignores MS_RDONLY
+        // flag for bind mount
+        if self.readonly {
+            let flags = flags | flags::MS_REMOUNT;
+            let rc = unsafe { mount(
+                    null(),
+                    self.target.as_ptr(),
+                    null(),
+                    flags.bits(),
+                    null()) };
+            if rc < 0 {
+                return Err(OSError(io::Error::last_os_error(), Box::new(self)));
+            }
+        }
+        Ok(())
     }
 
     /// Execute a bind mount and explain the error immediately
