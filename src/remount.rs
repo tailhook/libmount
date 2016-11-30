@@ -15,7 +15,7 @@ use nix::mount::MsFlags;
 use {OSError, Error};
 use util::path_to_cstring;
 use explain::{Explainable, exists, user};
-use mountinfo::{MountInfoParser, ParseError};
+use mountinfo::{ParseRowError, parse_mount_point};
 
 /// A remount definition
 ///
@@ -73,7 +73,7 @@ pub enum RemountError {
     Io(String, io::Error),
     Os(OSError),
     Mount(Error),
-    ParseMountInfo(ParseError),
+    ParseMountInfo(ParseRowError),
     UnknownMountPoint(PathBuf),
 }
 
@@ -125,8 +125,8 @@ impl From<io::Error> for RemountError {
     }
 }
 
-impl From<ParseError> for RemountError {
-    fn from(error: ParseError) -> Self {
+impl From<ParseRowError> for RemountError {
+    fn from(error: ParseRowError) -> Self {
         RemountError::ParseMountInfo(error)
     }
 }
@@ -311,7 +311,7 @@ fn get_mountpoint_flags(path: &Path) -> Result<MsFlags, RemountError> {
         mpath.push(path);
         mpath
     };
-    let mut mountinfo_content = vec!();
+    let mut mountinfo_content = Vec::with_capacity(4 * 1024);
     let mountinfo_path = Path::new("/proc/self/mountinfo");
     let mut mountinfo_file = try!(File::open(mountinfo_path)
         .map_err(|e| RemountError::Io(
@@ -329,19 +329,15 @@ fn get_mountpoint_flags(path: &Path) -> Result<MsFlags, RemountError> {
 fn get_mountpoint_flags_from(content: &[u8], path: &Path)
     -> Result<Option<c_ulong>, RemountError>
 {
-    let mounts_parser = MountInfoParser::new(content);
-    let mut flags = None;
-    for mount_info_res in mounts_parser {
-        let mount_info = try!(mount_info_res);
-        if mount_info.mount_point == path {
-            flags = Some(mount_info.get_flags());
+    // iterate from the end of the mountinfo file
+    for line in content.split(|c| *c == b'\n').rev() {
+        if let Some(mount_point) = try!(parse_mount_point(line)) {
+            if mount_point.mount_point == path {
+                return Ok(Some(mount_point.get_flags()));
+            }
         }
     }
-    if flags.is_some() {
-        Ok(flags)
-    } else {
-        Ok(None)
-    }
+    Ok(None)
 }
 
 #[cfg(test)]
@@ -424,7 +420,7 @@ mod test {
 
     #[test]
     fn test_get_mountpoint_flags() {
-        assert!(get_mountpoint_flags(Path::new("/dev")).is_ok());
+        assert!(get_mountpoint_flags(Path::new("/")).is_ok());
     }
 
     #[test]
