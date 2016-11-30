@@ -18,6 +18,7 @@
 
 extern crate libc;
 extern crate nix;
+#[macro_use] extern crate quick_error;
 
 mod util;
 mod error;

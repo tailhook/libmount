@@ -5,7 +5,6 @@ use std::io::Read;
 use std::ptr::null;
 use std::path::{Path, PathBuf};
 use std::env::current_dir;
-use std::error::Error as StdError;
 use std::default::Default;
 
 use libc::{mount, c_ulong};
@@ -68,78 +67,36 @@ fn apply_flag(flags: MsFlags, flag: MsFlags, set: Option<bool>) -> MsFlags {
     }
 }
 
-#[derive(Debug)]
-pub enum RemountError {
-    Io(String, io::Error),
-    Os(OSError),
-    Mount(Error),
-    ParseMountInfo(ParseRowError),
-    UnknownMountPoint(PathBuf),
-}
-
-impl fmt::Display for RemountError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        use self::RemountError::*;
-
-        match self {
-            &Io(ref msg, ref e) => write!(fmt, "{}: {}", msg, e),
-            &Os(ref e) => write!(fmt, "{}", e),
-            &Mount(ref e) => write!(fmt, "{}", e),
-            &ParseMountInfo(ref msg) => write!(fmt, "{}", msg),
-            &UnknownMountPoint(ref p) => {
-                write!(fmt, "Cannot find mount point: {:?}", p)
-            },
+quick_error! {
+    #[derive(Debug)]
+    pub enum RemountError {
+        Io(msg: String, err: io::Error) {
+            cause(err)
+            display("{}: {}", msg, err)
+            description(err.description())
+            from(err: io::Error) -> (String::new(), err)
         }
-    }
-}
-
-impl StdError for RemountError {
-    fn cause(&self) -> Option<&StdError> {
-        use self::RemountError::*;
-
-        match self {
-            &Io(_, ref e) => Some(e),
-            &Os(ref e) => Some(e),
-            &Mount(ref e) => Some(e),
-            &ParseMountInfo(ref e) => Some(e),
-            &UnknownMountPoint(_) => None,
+        Os(err: OSError) {
+            cause(err)
+            display("{}", err)
+            description(err.description())
+            from()
         }
-    }
-
-    fn description(&self) -> &str {
-        use self::RemountError::*;
-
-        match self {
-            &Io(_, ref e) => e.description(),
-            &Os(ref e) => e.description(),
-            &Mount(ref e) => e.description(),
-            &ParseMountInfo(ref e) => e.description(),
-            &UnknownMountPoint(_) => "Unknown mount point",
+        Mount(err: Error) {
+            cause(err)
+            display("{}", err)
+            description(err.description())
+            from()
         }
-    }
-}
-
-impl From<io::Error> for RemountError {
-    fn from(error: io::Error) -> Self {
-        RemountError::Io(format!("{:?}", error), error)
-    }
-}
-
-impl From<ParseRowError> for RemountError {
-    fn from(error: ParseRowError) -> Self {
-        RemountError::ParseMountInfo(error)
-    }
-}
-
-impl From<OSError> for RemountError {
-    fn from(error: OSError) -> Self {
-        RemountError::Os(error)
-    }
-}
-
-impl From<Error> for RemountError {
-    fn from(error: Error) -> Self {
-        RemountError::Mount(error)
+        ParseMountInfo(err: ParseRowError) {
+            cause(err)
+            display("{}", err)
+            description(err.description())
+            from()
+        }
+        UnknownMountPoint(path: PathBuf) {
+            display("Cannot find mount point: {:?}", path)
+        }
     }
 }
 
