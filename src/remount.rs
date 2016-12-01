@@ -28,6 +28,7 @@ pub struct Remount {
 
 #[derive(Debug, Clone, Default)]
 struct MountFlags {
+    pub bind: Option<bool>,
     pub readonly: Option<bool>,
     pub nodev: Option<bool>,
     pub noexec: Option<bool>,
@@ -44,6 +45,7 @@ struct MountFlags {
 impl MountFlags {
     fn apply_to_flags(&self, flags: MsFlags) -> MsFlags {
         let mut flags = flags;
+        flags = apply_flag(flags, ms_flags::MS_BIND, self.bind);
         flags = apply_flag(flags, ms_flags::MS_RDONLY, self.readonly);
         flags = apply_flag(flags, ms_flags::MS_NODEV, self.nodev);
         flags = apply_flag(flags, ms_flags::MS_NOEXEC, self.noexec);
@@ -106,6 +108,13 @@ impl Remount {
             path: path.as_ref().to_path_buf(),
             flags: Default::default(),
         }
+    }
+    /// Set bind flag
+    /// Note: remount readonly doesn't work without MS_BIND flag
+    /// inside unpriviledged user namespaces
+    pub fn bind(mut self, flag: bool) -> Remount {
+        self.flags.bind = Some(flag);
+        self
     }
     /// Set readonly flag
     pub fn readonly(mut self, flag: bool) -> Remount {
@@ -195,6 +204,10 @@ impl Remount {
 impl fmt::Display for MountFlags {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut prefix = "";
+        if let Some(true) = self.bind {
+            try!(write!(fmt, "{}bind", prefix));
+            prefix = ",";
+        }
         if let Some(true) = self.readonly {
             try!(write!(fmt, "{}ro", prefix));
             prefix = ",";
@@ -303,7 +316,7 @@ mod test {
     use std::ffi::OsStr;
     use std::os::unix::ffi::OsStrExt;
 
-    use libc::{MS_RDONLY, MS_NODEV, MS_NOEXEC, MS_NOSUID};
+    use libc::{MS_BIND, MS_RDONLY, MS_NODEV, MS_NOEXEC, MS_NOSUID};
     use libc::{MS_NOATIME, MS_NODIRATIME, MS_RELATIME, MS_STRICTATIME};
     use libc::{MS_DIRSYNC, MS_SYNCHRONOUS, MS_MANDLOCK};
     use nix::mount::MsFlags;
@@ -314,6 +327,7 @@ mod test {
     #[test]
     fn test_mount_flags() {
         let flags = MountFlags {
+            bind: Some(true),
             readonly: Some(true),
             nodev: Some(true),
             noexec: Some(true),
@@ -326,12 +340,13 @@ mod test {
             synchronous: Some(true),
             mandlock: Some(true),
         };
-        let bits = MS_RDONLY | MS_NODEV | MS_NOEXEC | MS_NOSUID |
+        let bits = MS_BIND | MS_RDONLY | MS_NODEV | MS_NOEXEC | MS_NOSUID |
             MS_NOATIME | MS_NODIRATIME | MS_RELATIME | MS_STRICTATIME |
             MS_DIRSYNC | MS_SYNCHRONOUS | MS_MANDLOCK;
         assert_eq!(flags.apply_to_flags(MsFlags::empty()).bits(), bits);
 
         let flags = MountFlags {
+            bind: Some(false),
             readonly: Some(false),
             nodev: Some(false),
             noexec: Some(false),

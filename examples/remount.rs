@@ -12,6 +12,7 @@ use argparse::{ArgumentParser, Parse, StoreTrue};
 fn main() {
     env_logger::init().expect("init logging");
     let mut path = PathBuf::new();
+    let mut bind = false;
     let mut readonly = false;
     let mut nodev = false;
     let mut noexec = false;
@@ -22,6 +23,8 @@ fn main() {
                             but keeps current mount point options");
         ap.refer(&mut path).add_argument("path", Parse,
             "Directory for remounting").required();
+        ap.refer(&mut bind).add_option(&["--bind"], StoreTrue,
+            "Set bind mount option");
         ap.refer(&mut readonly).add_option(&["--readonly"], StoreTrue,
             "Set readonly mount option");
         ap.refer(&mut nodev).add_option(&["--nodev"], StoreTrue,
@@ -33,6 +36,7 @@ fn main() {
         ap.parse_args_or_exit();
     }
     match libmount::Remount::new(path)
+        .bind(bind)
         .readonly(readonly)
         .nodev(nodev)
         .noexec(noexec)
