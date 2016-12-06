@@ -78,18 +78,6 @@ quick_error! {
             description(err.description())
             from(err: io::Error) -> (String::new(), err)
         }
-        Os(err: OSError) {
-            cause(err)
-            display("{}", err)
-            description(err.description())
-            from()
-        }
-        Mount(err: Error) {
-            cause(err)
-            display("{}", err)
-            description(err.description())
-            from()
-        }
         ParseMountInfo(err: ParseRowError) {
             cause(err)
             display("{}", err)
@@ -173,8 +161,13 @@ impl Remount {
     }
 
     /// Execute a remount
-    pub fn bare_remount(self) -> Result<(), RemountError> {
-        let mut flags = try!(get_mountpoint_flags(&self.path));
+    pub fn bare_remount(self) -> Result<(), OSError> {
+        let mut flags = match get_mountpoint_flags(&self.path) {
+            Ok(flags) => flags,
+            Err(e) => {
+                return Err(OSError::from_remount(e, Box::new(self)));
+            },
+        };
         flags = self.flags.apply_to_flags(flags) | ms_flags::MS_REMOUNT;
         let rc = unsafe { mount(
             null(), path_to_cstring(&self.path).as_ptr(),
@@ -182,22 +175,15 @@ impl Remount {
             flags.bits(),
             null()) };
         if rc < 0 {
-            Err(RemountError::from(
-                OSError(io::Error::last_os_error(), Box::new(self))))
+            Err(OSError::from_io(io::Error::last_os_error(), Box::new(self)))
         } else {
             Ok(())
         }
     }
 
     /// Execute a remount and explain the error immediately
-    pub fn remount(self) -> Result<(), RemountError> {
-        let mount_res = self.bare_remount();
-        match mount_res {
-            Err(RemountError::Os(os_error)) => {
-                Err(RemountError::from(OSError::explain(os_error)))
-            },
-            _ => mount_res,
-        }
+    pub fn remount(self) -> Result<(), Error> {
+        self.bare_remount().map_err(OSError::explain)
     }
 }
 
@@ -321,6 +307,7 @@ mod test {
     use libc::{MS_DIRSYNC, MS_SYNCHRONOUS, MS_MANDLOCK};
     use nix::mount::MsFlags;
 
+    use Error;
     use super::{Remount, RemountError, MountFlags};
     use super::{get_mountpoint_flags, get_mountpoint_flags_from};
 
@@ -397,11 +384,26 @@ mod test {
 
     #[test]
     fn test_get_mountpoint_flags_unknown() {
-        let mount_point = Path::new(OsStr::from_bytes(b"/xff"));
+        let mount_point = Path::new(OsStr::from_bytes(b"/\xff"));
         let error = get_mountpoint_flags(mount_point).unwrap_err();
         match error {
             RemountError::UnknownMountPoint(p) => assert_eq!(p, mount_point),
             _ => panic!(),
         }
+    }
+
+    #[test]
+    fn test_remount_unknown_mountpoint() {
+        let remount = Remount::new(OsStr::from_bytes(b"/\xff"));
+        let error = remount.remount().unwrap_err();
+        let Error(_, e, msg) = error;
+        match e.get_ref() {
+            Some(e) => {
+                assert_eq!(format!("{}", e), format!(
+                    "Cannot find mount point: {:?}", OsStr::from_bytes(b"/\xff")));
+            },
+            _ => panic!(),
+        }
+        assert!(msg.starts_with("Cannot find mount point: \"/�\", path: missing, "));
     }
 }

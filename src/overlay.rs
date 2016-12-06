@@ -89,7 +89,7 @@ impl Overlay {
                 0,
                 options.as_ptr() as *const c_void) };
         if rc < 0 {
-            Err(OSError(io::Error::last_os_error(), Box::new(self)))
+            Err(OSError::from_io(io::Error::last_os_error(), Box::new(self)))
         } else {
             Ok(())
         }

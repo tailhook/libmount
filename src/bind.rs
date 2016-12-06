@@ -56,7 +56,7 @@ impl BindMount {
                 flags.bits(),
                 null()) };
         if rc < 0 {
-            Err(OSError(io::Error::last_os_error(), Box::new(self)))
+            Err(OSError::from_io(io::Error::last_os_error(), Box::new(self)))
         } else {
             Ok(())
         }

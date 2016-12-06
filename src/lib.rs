@@ -33,11 +33,26 @@ mod mountinfo;
 use std::io;
 
 use explain::Explainable;
+use remount::RemountError;
 pub use bind::BindMount;
 pub use overlay::Overlay;
 pub use tmpfs::Tmpfs;
 pub use modify::Move;
-pub use remount::{Remount, RemountError};
+pub use remount::Remount;
+
+quick_error! {
+    #[derive(Debug)]
+    enum MountError {
+        Io(err: io::Error) {
+            cause(err)
+            from()
+        }
+        Remount(err: RemountError) {
+            cause(err)
+            from()
+        }
+    }
+}
 
 /// The raw os error
 ///
@@ -54,7 +69,17 @@ pub use remount::{Remount, RemountError};
 /// path.
 ///
 #[derive(Debug)]
-pub struct OSError(io::Error, Box<Explainable>);
+pub struct OSError(MountError, Box<Explainable>);
+
+impl OSError {
+    fn from_io(err: io::Error, explain: Box<Explainable>) -> OSError {
+        OSError(MountError::Io(err), explain)
+    }
+
+    fn from_remount(err: RemountError, explain: Box<Explainable>) -> OSError {
+        OSError(MountError::Remount(err), explain)
+    }
+}
 
 /// The error holder which contains as much information about why failure
 /// happens as the library implementors could gain
