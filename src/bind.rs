@@ -1,7 +1,8 @@
 use std::io;
 use std::fmt;
 use std::ptr::null;
-use std::ffi::CString;
+use std::ffi::{CString, OsStr};
+use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
 use libc::mount;
@@ -10,6 +11,7 @@ use nix::mount as flags;
 use {OSError, Error};
 use util::{path_to_cstring, as_path};
 use explain::{Explainable, exists, user};
+use remount::Remount;
 
 
 /// A mount bind definition
@@ -22,6 +24,7 @@ pub struct BindMount {
     source: CString,
     target: CString,
     recursive: bool,
+    readonly: bool,
 }
 
 impl BindMount {
@@ -35,11 +38,18 @@ impl BindMount {
             source: path_to_cstring(source.as_ref()),
             target: path_to_cstring(target.as_ref()),
             recursive: true,
+            readonly: false,
         }
     }
     /// Toggle recursion
     pub fn recursive(mut self, flag: bool) -> BindMount {
         self.recursive = flag;
+        self
+    }
+    /// Toggle readonly flag
+    /// Note if true it makes additional mount call
+    pub fn readonly(mut self, flag: bool) -> BindMount {
+        self.readonly = flag;
         self
     }
 
@@ -56,10 +66,16 @@ impl BindMount {
                 flags.bits(),
                 null()) };
         if rc < 0 {
-            Err(OSError::from_io(io::Error::last_os_error(), Box::new(self)))
-        } else {
-            Ok(())
+            return Err(
+                OSError::from_io(io::Error::last_os_error(), Box::new(self)));
         }
+        if self.readonly {
+            try!(Remount::new(OsStr::from_bytes(self.target.as_bytes()))
+                .bind(true)
+                .readonly(true)
+                .bare_remount());
+        }
+        Ok(())
     }
 
     /// Execute a bind mount and explain the error immediately
