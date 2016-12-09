@@ -46,8 +46,13 @@ impl BindMount {
         self.recursive = flag;
         self
     }
-    /// Toggle readonly flag
-    /// Note if true it makes additional mount call
+    /// If set to `true` makes bind-mount readonly
+    ///
+    /// Few notes:
+    /// 1. This makes additional `mount` call (`Remount().readonly()`)
+    /// 2. If remount fails mount bind is left on the filesystem, no cleanup
+    ///    is done
+    /// 3. If set to `false` is option is no-op (does **not** remount `rw`)
     pub fn readonly(mut self, flag: bool) -> BindMount {
         self.readonly = flag;
         self
