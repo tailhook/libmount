@@ -8,7 +8,7 @@ readme = "README.rst"
 keywords = ["linux", "container", "mount", "volume", "filesystem"]
 homepage = "http://github.com/tailhook/libmount"
 documentation = "http://tailhook.github.io/libmount/"
-version = "0.1.4"
+version = "0.1.5"
 authors = ["paul@colomiets.name"]
 
 [dependencies]
