@@ -4,7 +4,7 @@ use std::str::from_utf8;
 use std::ffi::CString;
 use std::path::Path;
 
-use libc::{c_void, uid_t, gid_t, mode_t};
+use libc::{c_void, uid_t, gid_t, mode_t, c_char};
 use libc::mount;
 use nix::mount::{self as flags, MsFlags};
 
@@ -117,9 +117,9 @@ impl Tmpfs {
         let mut options = self.format_options();
         options.push(0);
         let rc = unsafe { mount(
-                b"tmpfs\0".as_ptr() as *const i8,
+                b"tmpfs\0".as_ptr() as *const c_char,
                 self.target.as_ptr(),
-                b"tmpfs\0".as_ptr() as *const i8,
+                b"tmpfs\0".as_ptr() as *const c_char,
                 self.flags.bits(),
                 options.as_ptr() as *const c_void) };
         if rc < 0 {
