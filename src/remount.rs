@@ -394,16 +394,18 @@ mod test {
 
     #[test]
     fn test_remount_unknown_mountpoint() {
-        let remount = Remount::new(OsStr::from_bytes("/\u{fffd}".as_bytes()));
+        let remount = Remount::new("/non-existent");
         let error = remount.remount().unwrap_err();
         let Error(_, e, msg) = error;
         match e.get_ref() {
             Some(e) => {
-                assert_eq!(format!("{}", e), format!(
-                    "Cannot find mount point: {:?}", OsStr::from_bytes("/\u{fffd}".as_bytes())));
+                assert_eq!(
+                   e.to_string(),
+                   "Cannot find mount point: \"/non-existent\"");
             },
             _ => panic!(),
         }
-        assert!(msg.starts_with("Cannot find mount point: \"/�\", path: missing, "));
+        assert!(msg.starts_with(
+            "Cannot find mount point: \"/non-existent\", path: missing, "));
     }
 }
