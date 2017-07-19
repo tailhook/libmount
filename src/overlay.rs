@@ -6,7 +6,7 @@ use std::ffi::CString;
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::ffi::OsStrExt;
 
-use libc::{mount, c_void};
+use libc::{mount, c_void, c_char};
 
 use util::{path_to_cstring, as_path};
 use {OSError, Error};
@@ -83,9 +83,9 @@ impl Overlay {
         }
         options.push(b'\0');
         let rc = unsafe { mount(
-                b"overlay\0".as_ptr() as *const i8,
+                b"overlay\0".as_ptr() as *const c_char,
                 self.target.as_ptr(),
-                b"overlay\0".as_ptr() as *const i8,
+                b"overlay\0".as_ptr() as *const c_char,
                 0,
                 options.as_ptr() as *const c_void) };
         if rc < 0 {
