@@ -2,8 +2,8 @@
 libmount
 ========
 
-:Status: Pre-Alpha
-:Documentation: http://tailhook.github.io/libmount/
+:Status: Beta
+:Documentation: http://docs.rs/libmount
 
 This is a higher-level wrapper around ``mount()`` system call for linux.
 
