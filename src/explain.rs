@@ -20,7 +20,7 @@ pub fn exists(path: &Path) -> &'static str {
 
 pub fn user() -> &'static str {
     let uid = getuid();
-    if uid == 0 {
+    if u32::from(uid) == 0 {
         let mut buf = String::with_capacity(100);
         match File::open("/proc/self/uid_map")
               .and_then(|mut f| f.read_to_string(&mut buf))
