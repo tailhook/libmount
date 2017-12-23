@@ -231,7 +231,7 @@ fn parse_int(data: &[u8])
         ParseRowError(format!("Cannot parse integer {:?}: {}",
             String::from_utf8_lossy(field).into_owned(), e))}));
 
-    let v = try!(u64::from_str_radix(v, 10).map_err(|e| {
+    let v = try!(c_ulong::from_str_radix(v, 10).map_err(|e| {
         ParseRowError(format!("Cannot parse integer {:?}: {}",
             String::from_utf8_lossy(field).into_owned(), e))}));
     Ok((v, tail))
