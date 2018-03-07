@@ -41,6 +41,7 @@ pub use overlay::Overlay;
 pub use tmpfs::Tmpfs;
 pub use modify::Move;
 pub use remount::Remount;
+pub use mountinfo::{MountInfoParser, ParseError};
 
 quick_error! {
     #[derive(Debug)]
