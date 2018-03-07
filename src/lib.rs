@@ -30,7 +30,7 @@ mod overlay;
 mod tmpfs;
 mod modify;
 mod remount;
-mod mountinfo;
+pub mod mountinfo;
 
 use std::io;
 

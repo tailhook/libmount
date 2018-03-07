@@ -1,3 +1,5 @@
+//! This module contains parser for /proc/PID/mountinfo
+//!
 use std;
 use std::fmt;
 use std::ffi::{OsStr, OsString};
@@ -10,8 +12,9 @@ use libc::{MS_RDONLY, MS_NOSUID, MS_NODEV, MS_NOEXEC, MS_SYNCHRONOUS};
 use libc::{MS_MANDLOCK, MS_DIRSYNC, MS_NOATIME, MS_NODIRATIME};
 use libc::{MS_RELATIME, MS_STRICTATIME};
 
+/// Error parsing a single entry of mountinfo file
 #[derive(Debug)]
-pub struct ParseRowError(String);
+pub(crate) struct ParseRowError(pub(crate) String);
 
 impl fmt::Display for ParseRowError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
@@ -25,6 +28,7 @@ impl Error for ParseRowError {
     }
 }
 
+/// Mountinfo file parsing error
 #[derive(Debug)]
 pub struct ParseError {
     msg: String,
@@ -33,7 +37,7 @@ pub struct ParseError {
 }
 
 impl ParseError {
-    pub fn new(msg: String, row_num: usize, row: String) -> ParseError {
+    fn new(msg: String, row_num: usize, row: String) -> ParseError {
         ParseError {
             msg: msg,
             row_num: row_num,
@@ -44,7 +48,7 @@ impl ParseError {
 
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "Parse error at line {}: {}\n{}", 
+        write!(f, "Parse error at line {}: {}\n{}",
             self.row_num, self.description(), self.row)
     }
 }
@@ -55,8 +59,8 @@ impl Error for ParseError {
     }
 }
 
-// TODO: make public api some day
-#[allow(dead_code)]
+/// A parser class for mountinfo file
+#[derive(Debug)]
 pub struct MountInfoParser<'a> {
     data: &'a [u8],
     row_num: usize,
@@ -65,6 +69,9 @@ pub struct MountInfoParser<'a> {
 
 #[allow(dead_code)]
 impl<'a> MountInfoParser<'a> {
+    /// Create a new parser
+    ///
+    /// `data` should contain whole contents of `mountinfo` file of any process
     pub fn new(data: &'a [u8]) -> MountInfoParser<'a> {
         MountInfoParser {
             data: data,
@@ -74,6 +81,9 @@ impl<'a> MountInfoParser<'a> {
     }
 }
 
+/// A single entry returned by mountpoint parser
+#[allow(missing_docs)]  // self-descriptive / described by man page
+#[derive(Debug)]
 pub struct MountPoint<'a> {
     pub mount_id: c_ulong,
     pub parent_id: c_ulong,
@@ -91,6 +101,7 @@ pub struct MountPoint<'a> {
 }
 
 impl<'a> MountPoint<'a> {
+    /// Returns flags of the mountpoint  as a numerc value
     pub fn get_flags(&self) -> c_ulong {
         let mut flags = 0 as c_ulong;
         for opt in self.mount_options.as_bytes().split(|c| *c == b',') {
@@ -148,7 +159,7 @@ impl<'a> Iterator for MountInfoParser<'a> {
     }
 }
 
-pub fn parse_mount_point<'a>(row: &'a [u8])
+pub(crate) fn parse_mount_point<'a>(row: &'a [u8])
      -> Result<Option<MountPoint<'a>>, ParseRowError>
 {
     let row = rstrip_cr(&row);

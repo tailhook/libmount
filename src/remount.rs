@@ -14,7 +14,7 @@ use nix::mount::MsFlags;
 use {OSError, Error};
 use util::path_to_cstring;
 use explain::{Explainable, exists, user};
-use mountinfo::{ParseRowError, parse_mount_point};
+use mountinfo::{parse_mount_point};
 
 /// A remount definition
 ///
@@ -78,10 +78,8 @@ quick_error! {
             description(err.description())
             from(err: io::Error) -> (String::new(), err)
         }
-        ParseMountInfo(err: ParseRowError) {
-            cause(err)
+        ParseMountInfo(err: String) {
             display("{}", err)
-            description(err.description())
             from()
         }
         UnknownMountPoint(path: PathBuf) {
@@ -291,7 +289,9 @@ fn get_mountpoint_flags_from(content: &[u8], path: &Path)
 {
     // iterate from the end of the mountinfo file
     for line in content.split(|c| *c == b'\n').rev() {
-        if let Some(mount_point) = try!(parse_mount_point(line)) {
+        let entry = parse_mount_point(line)
+            .map_err(|e| RemountError::ParseMountInfo(e.0))?;
+        if let Some(mount_point) = entry {
             if mount_point.mount_point == path {
                 return Ok(Some(mount_point.get_flags()));
             }
