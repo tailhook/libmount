@@ -91,6 +91,10 @@ quick_error! {
 }
 
 impl Remount {
+    /// Create a new Remount operation
+    ///
+    /// By default it doesn't modify any flags. So is basically useless, you
+    /// should set some flags to make it effective.
     pub fn new<A: AsRef<Path>>(path: A) -> Remount {
         Remount {
             path: path.as_ref().to_path_buf(),

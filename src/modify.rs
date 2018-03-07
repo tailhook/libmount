@@ -30,6 +30,7 @@ impl Move {
         }
     }
 
+    /// Execute a move-mountpoint operation
     pub fn bare_move_mountpoint(self)
         -> Result<(), OSError>
     {
@@ -46,7 +47,7 @@ impl Move {
         }
     }
 
-    /// Execute a bind mount and explain the error immediately
+    /// Execute a move mountpoint operation and explain the error immediately
     pub fn move_mountpoint(self) -> Result<(), Error> {
         self.bare_move_mountpoint().map_err(OSError::explain)
     }

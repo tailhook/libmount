@@ -6,6 +6,7 @@ use {OSError, Error, MountError};
 use remount::RemountError;
 
 impl OSError {
+    /// Convert error to the one providing extra useful information
     pub fn explain(self) -> Error {
         let text = self.1.explain();
         match self.0 {
