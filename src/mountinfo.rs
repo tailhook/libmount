@@ -61,19 +61,19 @@ impl Error for ParseError {
 
 /// A parser class for mountinfo file
 #[derive(Debug)]
-pub struct MountInfoParser<'a> {
+pub struct Parser<'a> {
     data: &'a [u8],
     row_num: usize,
     exhausted: bool,
 }
 
 #[allow(dead_code)]
-impl<'a> MountInfoParser<'a> {
+impl<'a> Parser<'a> {
     /// Create a new parser
     ///
     /// `data` should contain whole contents of `mountinfo` file of any process
-    pub fn new(data: &'a [u8]) -> MountInfoParser<'a> {
-        MountInfoParser {
+    pub fn new(data: &'a [u8]) -> Parser<'a> {
+        Parser {
             data: data,
             row_num: 0,
             exhausted: false,
@@ -122,7 +122,7 @@ impl<'a> MountPoint<'a> {
     }
 }
 
-impl<'a> Iterator for MountInfoParser<'a> {
+impl<'a> Iterator for Parser<'a> {
     type Item = Result<MountPoint<'a>, ParseError>;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -352,7 +352,7 @@ mod test {
 
     use libc::{MS_NOSUID, MS_NODEV, MS_NOEXEC, MS_RELATIME};
 
-    use super::{MountInfoParser, ParseError};
+    use super::{Parser, ParseError};
     use super::{is_octal_encoding, parse_octal, unescape_octals};
 
     #[test]
@@ -386,7 +386,7 @@ mod test {
     #[test]
     fn test_mount_info_parser_proc() {
         let content = b"19 24 0:4 / /proc rw,nosuid,nodev,noexec,relatime shared:12 - proc proc rw";
-        let mut parser = MountInfoParser::new(&content[..]);
+        let mut parser = Parser::new(&content[..]);
         let mount_point = parser.next().unwrap().unwrap();
         assert_eq!(mount_point.mount_id, 19);
         assert_eq!(mount_point.parent_id, 24);
@@ -408,7 +408,7 @@ mod test {
         let content = b"# Test comment\n\
                         \t # Another shifted comment\n\
                         19 24 0:4 / /#proc rw,nosuid,nodev,noexec,relatime shared:12 - proc proc rw";
-        let mut parser = MountInfoParser::new(&content[..]);
+        let mut parser = Parser::new(&content[..]);
         let mount_point = parser.next().unwrap().unwrap();
         assert_eq!(mount_point.mount_id, 19);
         assert_eq!(mount_point.parent_id, 24);
@@ -428,7 +428,7 @@ mod test {
     #[test]
     fn test_mount_info_parser_missing_optional_fields() {
         let content = b"335 294 0:56 / /proc rw,relatime - proc proc rw";
-        let mut parser = MountInfoParser::new(&content[..]);
+        let mut parser = Parser::new(&content[..]);
         let mount_point = parser.next().unwrap().unwrap();
         assert_eq!(mount_point.mount_id, 335);
         assert_eq!(mount_point.parent_id, 294);
@@ -448,7 +448,7 @@ mod test {
     #[test]
     fn test_mount_info_parser_more_optional_fields() {
         let content = b"335 294 0:56 / /proc rw,relatime shared:12 master:1 - proc proc rw";
-        let mut parser = MountInfoParser::new(&content[..]);
+        let mut parser = Parser::new(&content[..]);
         let mount_point = parser.next().unwrap().unwrap();
         assert_eq!(mount_point.mount_id, 335);
         assert_eq!(mount_point.parent_id, 294);
@@ -468,7 +468,7 @@ mod test {
     #[test]
     fn test_mount_info_parser_escaping() {
         let content = br"76 24 8:6 / /home/my\040super\011name\012\134 rw,relatime shared:29 - ext4 /dev/sda1 rw,data=ordered";
-        let mut parser = MountInfoParser::new(&content[..]);
+        let mut parser = Parser::new(&content[..]);
         let mount_point = parser.next().unwrap().unwrap();
         assert_eq!(mount_point.mount_id, 76);
         assert_eq!(mount_point.parent_id, 24);
@@ -488,7 +488,7 @@ mod test {
     #[test]
     fn test_mount_info_parser_non_utf8() {
         let content = b"22 24 0:19 / /\xff rw shared:5 - tmpfs tmpfs rw,mode=755";
-        let mut parser = MountInfoParser::new(&content[..]);
+        let mut parser = Parser::new(&content[..]);
         let mount_point = parser.next().unwrap().unwrap();
         assert_eq!(mount_point.mount_point, Path::new(OsStr::from_bytes(b"/\xff")));
         assert_eq!(mount_point.mount_options, OsStr::new("rw"));
@@ -504,7 +504,7 @@ mod test {
                         \n\
                         \r\n\
                         27 22 0:22 / /tmp rw,nosuid,nodev shared:6 - tmpfs tmpfs rw\r";
-        let mut parser = MountInfoParser::new(&content[..]);
+        let mut parser = Parser::new(&content[..]);
         let mount_point = parser.next().unwrap().unwrap();
         assert_eq!(mount_point.mount_point, Path::new("/tmp"));
         assert_eq!(mount_point.mount_options, OsStr::new("rw"));
@@ -521,7 +521,7 @@ mod test {
     #[test]
     fn test_mount_info_parser_incomplete_row() {
         let content = b"19 24 0:4 / /proc rw,relatime shared:12 - proc proc";
-        let mut parser = MountInfoParser::new(&content[..]);
+        let mut parser = Parser::new(&content[..]);
         let mount_info_res = parser.next().unwrap();
         assert!(mount_info_res.is_err());
         match mount_info_res {
@@ -536,7 +536,7 @@ mod test {
     #[test]
     fn test_mount_info_parser_invalid_int() {
         let content = b"19 24b 0:4 / /proc rw,relatime - proc proc rw";
-        let mut parser = MountInfoParser::new(&content[..]);
+        let mut parser = Parser::new(&content[..]);
         let mount_info_res = parser.next().unwrap();
         assert!(mount_info_res.is_err());
         match mount_info_res {
@@ -551,7 +551,7 @@ mod test {
     #[test]
     fn test_mount_info_parser_overflowed_int() {
         let content = b"111111111111111111111";
-        let mut parser = MountInfoParser::new(&content[..]);
+        let mut parser = Parser::new(&content[..]);
         let mount_info_res = parser.next().unwrap();
         assert!(mount_info_res.is_err());
         match mount_info_res {
@@ -566,7 +566,7 @@ mod test {
     #[test]
     fn test_mount_info_parser_invalid_escape() {
         let content = b"19 24 0:4 / /proc\\1 rw,relatime - proc proc rw";
-        let mut parser = MountInfoParser::new(&content[..]);
+        let mut parser = Parser::new(&content[..]);
         let mount_point = parser.next().unwrap().unwrap();
         assert_eq!(mount_point.mount_point, Path::new("/proc\\1"));
         assert!(parser.next().is_none());
@@ -575,7 +575,7 @@ mod test {
     #[test]
     fn test_mount_info_parser_overflowed_escape() {
         let content = b"19 24 0:4 / /proc\\400 rw,nosuid,nodev,noexec,relatime - proc proc rw";
-        let mut parser = MountInfoParser::new(&content[..]);
+        let mut parser = Parser::new(&content[..]);
         let mount_point = parser.next().unwrap().unwrap();
         assert_eq!(mount_point.mount_point, Path::new(OsStr::from_bytes(b"/proc\x00")));
         assert!(parser.next().is_none());
