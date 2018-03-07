@@ -15,8 +15,8 @@
 //! too critical (i.e. you are doing thousands of *failing* mounts per second).
 //! On the success path there is no overhead.
 //!
-#[warn(missing_debug_implementations)]
-#[warn(missing_docs)]
+#![warn(missing_debug_implementations)]
+#![warn(missing_docs)]
 
 extern crate libc;
 extern crate nix;
