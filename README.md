@@ -1,9 +1,9 @@
-========
 libmount
 ========
 
-:Status: Beta
-:Documentation: http://docs.rs/libmount
+[Documentation](https://docs.rs/libmount) |
+[Github](https://github.com/tailhook/libmount) |
+[Crate](https://crates.io/crates/libmount)
 
 This is a higher-level wrapper around ``mount()`` system call for linux.
 
@@ -19,17 +19,16 @@ Features:
 * [x] Bind Mounts
 * [x] OverlayFS
 * [x] Tmpfs
-* [ ] Pseudo file systems: ``proc``, ``sys``
-* [ ] ``umount`` and ``umount2``
-* [ ] Parser of ``/proc/PID/mountinfo``
-* [ ] Read-only mounts (remount)
+* [ ] Pseudo file systems: `proc`, `sys`
+* [ ] `umount` and `umount2`
+* [x] Parser of `/proc/PID/mountinfo`
+* [x] Read-only mounts (remount)
 * [ ] Ext2/3/4
 * [ ] Btrfs
 * [ ] Support of mount flags throught trait
 * [ ] Fuse
 
 
-=======
 License
 =======
 
@@ -40,7 +39,6 @@ Licensed under either of
 
 at your option.
 
-------------
 Contribution
 ------------
 

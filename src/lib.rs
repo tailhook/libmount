@@ -1,4 +1,8 @@
-//! libmount
+//! # libmount
+//!
+//! [Documentation](https://docs.rs/libmount) |
+//! [Github](https://github.com/tailhook/libmount) |
+//! [Crate](https://crates.io/crates/libmount)
 //!
 //! This library has two major goals:
 //!
