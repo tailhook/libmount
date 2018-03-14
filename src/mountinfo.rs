@@ -101,7 +101,9 @@ pub struct MountPoint<'a> {
 }
 
 impl<'a> MountPoint<'a> {
-    /// Returns flags of the mountpoint  as a numerc value
+    /// Returns flags of the mountpoint  as a numeric value
+    ///
+    /// This value matches linux `MS_*` flags as passed into mount syscall
     pub fn get_flags(&self) -> c_ulong {
         let mut flags = 0 as c_ulong;
         for opt in self.mount_options.as_bytes().split(|c| *c == b',') {
