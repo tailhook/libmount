@@ -34,6 +34,7 @@ mod overlay;
 mod tmpfs;
 mod modify;
 mod remount;
+mod fuse;
 pub mod mountinfo;
 
 use std::io;
@@ -45,6 +46,7 @@ pub use overlay::Overlay;
 pub use tmpfs::Tmpfs;
 pub use modify::Move;
 pub use remount::Remount;
+pub use fuse::Fuse;
 
 quick_error! {
     #[derive(Debug)]
