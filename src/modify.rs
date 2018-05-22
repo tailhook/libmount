@@ -5,7 +5,7 @@ use std::ffi::CString;
 use std::path::Path;
 
 use libc::mount;
-use nix::mount as flags;
+use nix::mount::MsFlags;
 
 use {OSError, Error};
 use util::{path_to_cstring, as_path};
@@ -38,7 +38,7 @@ impl Move {
                 self.source.as_ptr(),
                 self.target.as_ptr(),
                 null(),
-                flags::MS_MOVE.bits(),
+                MsFlags::MS_MOVE.bits(),
                 null()) };
         if rc < 0 {
             Err(OSError::from_io(io::Error::last_os_error(), Box::new(self)))

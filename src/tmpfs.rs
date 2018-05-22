@@ -6,7 +6,7 @@ use std::path::Path;
 
 use libc::{c_void, uid_t, gid_t, mode_t, c_char};
 use libc::mount;
-use nix::mount::{self as flags, MsFlags};
+use nix::mount::{MsFlags};
 
 use {OSError, Error};
 use util::{path_to_cstring, as_path};
@@ -44,7 +44,7 @@ impl Tmpfs {
             mode: None,
             uid: None,
             gid: None,
-            flags: flags::MS_NOSUID|flags::MS_NODEV,
+            flags: MsFlags::MS_NOSUID|MsFlags::MS_NODEV,
         }
     }
     /// Set size in bytes
@@ -156,7 +156,7 @@ impl Explainable for Tmpfs {
 mod test {
     #[cfg(test)]
     use super::Tmpfs;
-    
+
     #[test]
     fn test_tmpfs_options() {
         let fs = Tmpfs::new("/tmp")

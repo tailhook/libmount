@@ -6,7 +6,7 @@ use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
 use libc::mount;
-use nix::mount as flags;
+use nix::mount::MsFlags;
 
 use {OSError, Error};
 use util::{path_to_cstring, as_path};
@@ -61,9 +61,9 @@ impl BindMount {
 
     /// Execute a bind mount
     pub fn bare_mount(self) -> Result<(), OSError> {
-        let mut flags = flags::MS_BIND;
+        let mut flags = MsFlags::MS_BIND;
         if self.recursive {
-            flags = flags | flags::MS_REC;
+            flags = flags | MsFlags::MS_REC;
         }
         let rc = unsafe { mount(
                 self.source.as_ptr(),

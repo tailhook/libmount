@@ -8,7 +8,6 @@ use std::env::current_dir;
 use std::default::Default;
 
 use libc::{mount, c_ulong};
-use nix::mount as ms_flags;
 use nix::mount::MsFlags;
 
 use {OSError, Error};
@@ -45,18 +44,18 @@ struct MountFlags {
 impl MountFlags {
     fn apply_to_flags(&self, flags: MsFlags) -> MsFlags {
         let mut flags = flags;
-        flags = apply_flag(flags, ms_flags::MS_BIND, self.bind);
-        flags = apply_flag(flags, ms_flags::MS_RDONLY, self.readonly);
-        flags = apply_flag(flags, ms_flags::MS_NODEV, self.nodev);
-        flags = apply_flag(flags, ms_flags::MS_NOEXEC, self.noexec);
-        flags = apply_flag(flags, ms_flags::MS_NOSUID, self.nosuid);
-        flags = apply_flag(flags, ms_flags::MS_NOATIME, self.noatime);
-        flags = apply_flag(flags, ms_flags::MS_NODIRATIME, self.nodiratime);
-        flags = apply_flag(flags, ms_flags::MS_RELATIME, self.relatime);
-        flags = apply_flag(flags, ms_flags::MS_STRICTATIME, self.strictatime);
-        flags = apply_flag(flags, ms_flags::MS_DIRSYNC, self.dirsync);
-        flags = apply_flag(flags, ms_flags::MS_SYNCHRONOUS, self.synchronous);
-        flags = apply_flag(flags, ms_flags::MS_MANDLOCK, self.mandlock);
+        flags = apply_flag(flags, MsFlags::MS_BIND, self.bind);
+        flags = apply_flag(flags, MsFlags::MS_RDONLY, self.readonly);
+        flags = apply_flag(flags, MsFlags::MS_NODEV, self.nodev);
+        flags = apply_flag(flags, MsFlags::MS_NOEXEC, self.noexec);
+        flags = apply_flag(flags, MsFlags::MS_NOSUID, self.nosuid);
+        flags = apply_flag(flags, MsFlags::MS_NOATIME, self.noatime);
+        flags = apply_flag(flags, MsFlags::MS_NODIRATIME, self.nodiratime);
+        flags = apply_flag(flags, MsFlags::MS_RELATIME, self.relatime);
+        flags = apply_flag(flags, MsFlags::MS_STRICTATIME, self.strictatime);
+        flags = apply_flag(flags, MsFlags::MS_DIRSYNC, self.dirsync);
+        flags = apply_flag(flags, MsFlags::MS_SYNCHRONOUS, self.synchronous);
+        flags = apply_flag(flags, MsFlags::MS_MANDLOCK, self.mandlock);
         flags
     }
 }
@@ -170,7 +169,7 @@ impl Remount {
                 return Err(OSError::from_remount(e, Box::new(self)));
             },
         };
-        flags = self.flags.apply_to_flags(flags) | ms_flags::MS_REMOUNT;
+        flags = self.flags.apply_to_flags(flags) | MsFlags::MS_REMOUNT;
         let rc = unsafe { mount(
             null(), path_to_cstring(&self.path).as_ptr(),
             null(),
