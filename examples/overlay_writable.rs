@@ -10,7 +10,7 @@ use argparse::{ArgumentParser, Parse, ParseOption, Collect};
 
 
 fn main() {
-    env_logger::init().expect("init logging");
+    env_logger::init();
     let mut lowerdirs = Vec::<String>::new();
     let mut target = PathBuf::new();
     let mut upper = PathBuf::new();

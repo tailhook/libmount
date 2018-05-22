@@ -10,7 +10,7 @@ use argparse::{ArgumentParser, Parse};
 
 
 fn main() {
-    env_logger::init().expect("init logging");
+    env_logger::init();
     let mut source = PathBuf::new();
     let mut target = PathBuf::new();
     {
