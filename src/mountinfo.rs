@@ -7,10 +7,9 @@ use std::os::unix::ffi::{OsStrExt, OsStringExt};
 use std::borrow::Cow;
 use std::error::Error;
 
+use nix::mount::MsFlags;
+
 use libc::c_ulong;
-use libc::{MS_RDONLY, MS_NOSUID, MS_NODEV, MS_NOEXEC, MS_SYNCHRONOUS};
-use libc::{MS_MANDLOCK, MS_DIRSYNC, MS_NOATIME, MS_NODIRATIME};
-use libc::{MS_RELATIME, MS_STRICTATIME};
 
 /// Error parsing a single entry of mountinfo file
 #[derive(Debug)]
@@ -103,22 +102,22 @@ pub struct MountPoint<'a> {
 impl<'a> MountPoint<'a> {
     /// Returns flags of the mountpoint  as a numeric value
     ///
-    /// This value matches linux `MS_*` flags as passed into mount syscall
-    pub fn get_flags(&self) -> c_ulong {
-        let mut flags = 0 as c_ulong;
+    /// This value matches linux `MsFlags::MS_*` flags as passed into mount syscall
+    pub fn get_flags(&self) -> MsFlags {
+        let mut flags = MsFlags::empty();
         for opt in self.mount_options.as_bytes().split(|c| *c == b',') {
             let opt = OsStr::from_bytes(opt);
-            if opt == OsStr::new("ro") { flags |= MS_RDONLY }
-            else if opt == OsStr::new("nosuid") { flags |= MS_NOSUID }
-            else if opt == OsStr::new("nodev") { flags |= MS_NODEV }
-            else if opt == OsStr::new("noexec") { flags |= MS_NOEXEC }
-            else if opt == OsStr::new("mand") { flags |= MS_MANDLOCK }
-            else if opt == OsStr::new("sync") { flags |= MS_SYNCHRONOUS }
-            else if opt == OsStr::new("dirsync") { flags |= MS_DIRSYNC }
-            else if opt == OsStr::new("noatime") { flags |= MS_NOATIME }
-            else if opt == OsStr::new("nodiratime") { flags |= MS_NODIRATIME }
-            else if opt == OsStr::new("relatime") { flags |= MS_RELATIME }
-            else if opt == OsStr::new("strictatime") { flags |= MS_STRICTATIME }
+            if opt == OsStr::new("ro") { flags |= MsFlags::MS_RDONLY }
+            else if opt == OsStr::new("nosuid") { flags |= MsFlags::MS_NOSUID }
+            else if opt == OsStr::new("nodev") { flags |= MsFlags::MS_NODEV }
+            else if opt == OsStr::new("noexec") { flags |= MsFlags::MS_NOEXEC }
+            else if opt == OsStr::new("mand") { flags |= MsFlags::MS_MANDLOCK }
+            else if opt == OsStr::new("sync") { flags |= MsFlags::MS_SYNCHRONOUS }
+            else if opt == OsStr::new("dirsync") { flags |= MsFlags::MS_DIRSYNC }
+            else if opt == OsStr::new("noatime") { flags |= MsFlags::MS_NOATIME }
+            else if opt == OsStr::new("nodiratime") { flags |= MsFlags::MS_NODIRATIME }
+            else if opt == OsStr::new("relatime") { flags |= MsFlags::MS_RELATIME }
+            else if opt == OsStr::new("strictatime") { flags |= MsFlags::MS_STRICTATIME }
         }
         flags
     }
@@ -352,7 +351,7 @@ mod test {
     use std::ffi::OsStr;
     use std::os::unix::ffi::OsStrExt;
 
-    use libc::{MS_NOSUID, MS_NODEV, MS_NOEXEC, MS_RELATIME};
+    use nix::mount::MsFlags;
 
     use super::{Parser, ParseError};
     use super::{is_octal_encoding, parse_octal, unescape_octals};
@@ -401,7 +400,7 @@ mod test {
         assert_eq!(mount_point.fstype, OsStr::new("proc"));
         assert_eq!(mount_point.mount_source, OsStr::new("proc"));
         assert_eq!(mount_point.super_options, OsStr::new("rw"));
-        assert_eq!(mount_point.get_flags(), MS_NOSUID | MS_NODEV | MS_NOEXEC | MS_RELATIME);
+        assert_eq!(mount_point.get_flags(), MsFlags::MS_NOSUID | MsFlags::MS_NODEV | MsFlags::MS_NOEXEC | MsFlags::MS_RELATIME);
         assert!(parser.next().is_none());
     }
 
@@ -423,7 +422,7 @@ mod test {
         assert_eq!(mount_point.fstype, OsStr::new("proc"));
         assert_eq!(mount_point.mount_source, OsStr::new("proc"));
         assert_eq!(mount_point.super_options, OsStr::new("rw"));
-        assert_eq!(mount_point.get_flags(), MS_NOSUID | MS_NODEV | MS_NOEXEC | MS_RELATIME);
+        assert_eq!(mount_point.get_flags(), MsFlags::MS_NOSUID | MsFlags::MS_NODEV | MsFlags::MS_NOEXEC | MsFlags::MS_RELATIME);
         assert!(parser.next().is_none());
     }
 
@@ -443,7 +442,7 @@ mod test {
         assert_eq!(mount_point.fstype, OsStr::new("proc"));
         assert_eq!(mount_point.mount_source, OsStr::new("proc"));
         assert_eq!(mount_point.super_options, OsStr::new("rw"));
-        assert_eq!(mount_point.get_flags(), MS_RELATIME);
+        assert_eq!(mount_point.get_flags(), MsFlags::MS_RELATIME);
         assert!(parser.next().is_none());
     }
 
@@ -463,7 +462,7 @@ mod test {
         assert_eq!(mount_point.fstype, OsStr::new("proc"));
         assert_eq!(mount_point.mount_source, OsStr::new("proc"));
         assert_eq!(mount_point.super_options, OsStr::new("rw"));
-        assert_eq!(mount_point.get_flags(), MS_RELATIME);
+        assert_eq!(mount_point.get_flags(), MsFlags::MS_RELATIME);
         assert!(parser.next().is_none());
     }
 
@@ -483,7 +482,7 @@ mod test {
         assert_eq!(mount_point.fstype, OsStr::new("ext4"));
         assert_eq!(mount_point.mount_source, OsStr::new("/dev/sda1"));
         assert_eq!(mount_point.super_options, OsStr::new("rw,data=ordered"));
-        assert_eq!(mount_point.get_flags(), MS_RELATIME);
+        assert_eq!(mount_point.get_flags(), MsFlags::MS_RELATIME);
         assert!(parser.next().is_none());
     }
 
@@ -496,7 +495,7 @@ mod test {
         assert_eq!(mount_point.mount_options, OsStr::new("rw"));
         assert_eq!(mount_point.fstype, OsStr::new("tmpfs"));
         assert_eq!(mount_point.mount_source, OsStr::new("tmpfs"));
-        assert_eq!(mount_point.get_flags(), 0);
+        assert_eq!(mount_point.get_flags(), MsFlags::empty());
         assert!(parser.next().is_none());
     }
 
@@ -511,12 +510,12 @@ mod test {
         assert_eq!(mount_point.mount_point, Path::new("/tmp"));
         assert_eq!(mount_point.mount_options, OsStr::new("rw"));
         assert_eq!(mount_point.super_options, OsStr::new("rw"));
-        assert_eq!(mount_point.get_flags(), 0);
+        assert_eq!(mount_point.get_flags(), MsFlags::empty());
         let mount_point = parser.next().unwrap().unwrap();
         assert_eq!(mount_point.mount_point, Path::new("/tmp"));
         assert_eq!(mount_point.mount_options, OsStr::new("rw,nosuid,nodev"));
         assert_eq!(mount_point.super_options, OsStr::new("rw"));
-        assert_eq!(mount_point.get_flags(), MS_NOSUID | MS_NODEV);
+        assert_eq!(mount_point.get_flags(), MsFlags::MS_NOSUID | MsFlags::MS_NODEV);
         assert!(parser.next().is_none());
     }
 

@@ -78,12 +78,17 @@ quick_error! {
 pub struct OSError(MountError, Box<Explainable>);
 
 impl OSError {
-    fn from_io(err: io::Error, explain: Box<Explainable>) -> OSError {
-        OSError(MountError::Io(err), explain)
-    }
-
     fn from_remount(err: RemountError, explain: Box<Explainable>) -> OSError {
         OSError(MountError::Remount(err), explain)
+    }
+
+    fn from_nix(err: nix::Error, explain: Box<Explainable>) -> OSError {
+        OSError(
+            MountError::Io(
+                err.as_errno().map_or_else(|| io::Error::new(io::ErrorKind::Other, err), io::Error::from),
+            ),
+            explain,
+        )
     }
 }
 

@@ -1,14 +1,13 @@
 use std::io;
 use std::fmt;
+use std::ffi::CStr;
 use std::fs::File;
 use std::io::Read;
-use std::ptr::null;
 use std::path::{Path, PathBuf};
 use std::env::current_dir;
 use std::default::Default;
 
-use libc::{mount, c_ulong};
-use nix::mount::MsFlags;
+use nix::mount::{MsFlags, mount};
 
 use {OSError, Error};
 use util::path_to_cstring;
@@ -170,16 +169,13 @@ impl Remount {
             },
         };
         flags = self.flags.apply_to_flags(flags) | MsFlags::MS_REMOUNT;
-        let rc = unsafe { mount(
-            null(), path_to_cstring(&self.path).as_ptr(),
-            null(),
-            flags.bits(),
-            null()) };
-        if rc < 0 {
-            Err(OSError::from_io(io::Error::last_os_error(), Box::new(self)))
-        } else {
-            Ok(())
-        }
+        mount(
+            None::<&CStr>,
+            &*path_to_cstring(&self.path),
+            None::<&CStr>,
+            flags,
+            None::<&CStr>,
+        ).map_err(|err| OSError::from_nix(err, Box::new(self)))
     }
 
     /// Execute a remount and explain the error immediately
@@ -277,14 +273,14 @@ fn get_mountpoint_flags(path: &Path) -> Result<MsFlags, RemountError> {
         .map_err(|e| RemountError::Io(
             format!("Cannot read file: {:?}", mountinfo_path), e)));
     match get_mountpoint_flags_from(&mountinfo_content, &mount_path) {
-        Ok(Some(flags)) => Ok(MsFlags::from_bits_truncate(flags)),
+        Ok(Some(flags)) => Ok(flags),
         Ok(None) => Err(RemountError::UnknownMountPoint(mount_path)),
         Err(e) => Err(e),
     }
 }
 
 fn get_mountpoint_flags_from(content: &[u8], path: &Path)
-    -> Result<Option<c_ulong>, RemountError>
+    -> Result<Option<MsFlags>, RemountError>
 {
     // iterate from the end of the mountinfo file
     for line in content.split(|c| *c == b'\n').rev() {
@@ -305,9 +301,6 @@ mod test {
     use std::ffi::OsStr;
     use std::os::unix::ffi::OsStrExt;
 
-    use libc::{MS_BIND, MS_RDONLY, MS_NODEV, MS_NOEXEC, MS_NOSUID};
-    use libc::{MS_NOATIME, MS_NODIRATIME, MS_RELATIME, MS_STRICTATIME};
-    use libc::{MS_DIRSYNC, MS_SYNCHRONOUS, MS_MANDLOCK};
     use nix::mount::MsFlags;
 
     use Error;
@@ -330,9 +323,9 @@ mod test {
             synchronous: Some(true),
             mandlock: Some(true),
         };
-        let bits = MS_BIND | MS_RDONLY | MS_NODEV | MS_NOEXEC | MS_NOSUID |
-            MS_NOATIME | MS_NODIRATIME | MS_RELATIME | MS_STRICTATIME |
-            MS_DIRSYNC | MS_SYNCHRONOUS | MS_MANDLOCK;
+        let bits = (MsFlags::MS_BIND | MsFlags::MS_RDONLY | MsFlags::MS_NODEV | MsFlags::MS_NOEXEC | MsFlags::MS_NOSUID |
+            MsFlags::MS_NOATIME | MsFlags::MS_NODIRATIME | MsFlags::MS_RELATIME | MsFlags::MS_STRICTATIME |
+            MsFlags::MS_DIRSYNC | MsFlags::MS_SYNCHRONOUS | MsFlags::MS_MANDLOCK).bits();
         assert_eq!(flags.apply_to_flags(MsFlags::empty()).bits(), bits);
 
         let flags = MountFlags {
@@ -369,7 +362,7 @@ mod test {
     fn test_get_mountpoint_flags_from() {
         let content = b"19 24 0:4 / /proc rw,nosuid,nodev,noexec,relatime shared:12 - proc proc rw";
         let flags = get_mountpoint_flags_from(&content[..], Path::new("/proc")).unwrap().unwrap();
-        assert_eq!(flags, MS_NODEV | MS_NOEXEC | MS_NOSUID | MS_RELATIME);
+        assert_eq!(flags, MsFlags::MS_NODEV | MsFlags::MS_NOEXEC | MsFlags::MS_NOSUID | MsFlags::MS_RELATIME);
     }
 
     #[test]
@@ -377,7 +370,7 @@ mod test {
         let content = b"11 18 0:4 / /tmp rw shared:28 - tmpfs tmpfs rw\n\
                         12 18 0:6 / /tmp rw,nosuid,nodev shared:29 - tmpfs tmpfs rw\n";
         let flags = get_mountpoint_flags_from(&content[..], Path::new("/tmp")).unwrap().unwrap();
-        assert_eq!(flags, MS_NOSUID | MS_NODEV);
+        assert_eq!(flags, MsFlags::MS_NOSUID | MsFlags::MS_NODEV);
     }
 
     #[test]

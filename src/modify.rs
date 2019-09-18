@@ -1,11 +1,8 @@
-use std::io;
 use std::fmt;
-use std::ptr::null;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::path::Path;
 
-use libc::mount;
-use nix::mount::MsFlags;
+use nix::mount::{MsFlags, mount};
 
 use {OSError, Error};
 use util::{path_to_cstring, as_path};
@@ -34,17 +31,8 @@ impl Move {
     pub fn bare_move_mountpoint(self)
         -> Result<(), OSError>
     {
-        let rc = unsafe { mount(
-                self.source.as_ptr(),
-                self.target.as_ptr(),
-                null(),
-                MsFlags::MS_MOVE.bits(),
-                null()) };
-        if rc < 0 {
-            Err(OSError::from_io(io::Error::last_os_error(), Box::new(self)))
-        } else {
-            Ok(())
-        }
+        mount(Some(&*self.source), &*self.target, None::<&CStr>, MsFlags::MS_MOVE, None::<&CStr>)
+            .map_err(|err| OSError::from_nix(err, Box::new(self)))
     }
 
     /// Execute a move mountpoint operation and explain the error immediately
