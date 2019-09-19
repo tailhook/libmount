@@ -288,7 +288,7 @@ fn get_mountpoint_flags_from(content: &[u8], path: &Path)
             .map_err(|e| RemountError::ParseMountInfo(e.0))?;
         if let Some(mount_point) = entry {
             if mount_point.mount_point == path {
-                return Ok(Some(mount_point.get_flags()));
+                return Ok(Some(mount_point.get_mount_flags()));
             }
         }
     }

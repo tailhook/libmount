@@ -103,7 +103,11 @@ impl<'a> MountPoint<'a> {
     /// Returns flags of the mountpoint  as a numeric value
     ///
     /// This value matches linux `MsFlags::MS_*` flags as passed into mount syscall
-    pub fn get_flags(&self) -> MsFlags {
+    pub fn get_flags(&self) -> c_ulong {
+        self.get_mount_flags().bits() as c_ulong
+    }
+
+    pub(crate) fn get_mount_flags(&self) -> MsFlags {
         let mut flags = MsFlags::empty();
         for opt in self.mount_options.as_bytes().split(|c| *c == b',') {
             let opt = OsStr::from_bytes(opt);
@@ -400,7 +404,7 @@ mod test {
         assert_eq!(mount_point.fstype, OsStr::new("proc"));
         assert_eq!(mount_point.mount_source, OsStr::new("proc"));
         assert_eq!(mount_point.super_options, OsStr::new("rw"));
-        assert_eq!(mount_point.get_flags(), MsFlags::MS_NOSUID | MsFlags::MS_NODEV | MsFlags::MS_NOEXEC | MsFlags::MS_RELATIME);
+        assert_eq!(mount_point.get_mount_flags(), MsFlags::MS_NOSUID | MsFlags::MS_NODEV | MsFlags::MS_NOEXEC | MsFlags::MS_RELATIME);
         assert!(parser.next().is_none());
     }
 
@@ -422,7 +426,7 @@ mod test {
         assert_eq!(mount_point.fstype, OsStr::new("proc"));
         assert_eq!(mount_point.mount_source, OsStr::new("proc"));
         assert_eq!(mount_point.super_options, OsStr::new("rw"));
-        assert_eq!(mount_point.get_flags(), MsFlags::MS_NOSUID | MsFlags::MS_NODEV | MsFlags::MS_NOEXEC | MsFlags::MS_RELATIME);
+        assert_eq!(mount_point.get_mount_flags(), MsFlags::MS_NOSUID | MsFlags::MS_NODEV | MsFlags::MS_NOEXEC | MsFlags::MS_RELATIME);
         assert!(parser.next().is_none());
     }
 
@@ -442,7 +446,7 @@ mod test {
         assert_eq!(mount_point.fstype, OsStr::new("proc"));
         assert_eq!(mount_point.mount_source, OsStr::new("proc"));
         assert_eq!(mount_point.super_options, OsStr::new("rw"));
-        assert_eq!(mount_point.get_flags(), MsFlags::MS_RELATIME);
+        assert_eq!(mount_point.get_mount_flags(), MsFlags::MS_RELATIME);
         assert!(parser.next().is_none());
     }
 
@@ -462,7 +466,7 @@ mod test {
         assert_eq!(mount_point.fstype, OsStr::new("proc"));
         assert_eq!(mount_point.mount_source, OsStr::new("proc"));
         assert_eq!(mount_point.super_options, OsStr::new("rw"));
-        assert_eq!(mount_point.get_flags(), MsFlags::MS_RELATIME);
+        assert_eq!(mount_point.get_mount_flags(), MsFlags::MS_RELATIME);
         assert!(parser.next().is_none());
     }
 
@@ -482,7 +486,7 @@ mod test {
         assert_eq!(mount_point.fstype, OsStr::new("ext4"));
         assert_eq!(mount_point.mount_source, OsStr::new("/dev/sda1"));
         assert_eq!(mount_point.super_options, OsStr::new("rw,data=ordered"));
-        assert_eq!(mount_point.get_flags(), MsFlags::MS_RELATIME);
+        assert_eq!(mount_point.get_mount_flags(), MsFlags::MS_RELATIME);
         assert!(parser.next().is_none());
     }
 
@@ -495,7 +499,7 @@ mod test {
         assert_eq!(mount_point.mount_options, OsStr::new("rw"));
         assert_eq!(mount_point.fstype, OsStr::new("tmpfs"));
         assert_eq!(mount_point.mount_source, OsStr::new("tmpfs"));
-        assert_eq!(mount_point.get_flags(), MsFlags::empty());
+        assert_eq!(mount_point.get_mount_flags(), MsFlags::empty());
         assert!(parser.next().is_none());
     }
 
@@ -510,12 +514,12 @@ mod test {
         assert_eq!(mount_point.mount_point, Path::new("/tmp"));
         assert_eq!(mount_point.mount_options, OsStr::new("rw"));
         assert_eq!(mount_point.super_options, OsStr::new("rw"));
-        assert_eq!(mount_point.get_flags(), MsFlags::empty());
+        assert_eq!(mount_point.get_mount_flags(), MsFlags::empty());
         let mount_point = parser.next().unwrap().unwrap();
         assert_eq!(mount_point.mount_point, Path::new("/tmp"));
         assert_eq!(mount_point.mount_options, OsStr::new("rw,nosuid,nodev"));
         assert_eq!(mount_point.super_options, OsStr::new("rw"));
-        assert_eq!(mount_point.get_flags(), MsFlags::MS_NOSUID | MsFlags::MS_NODEV);
+        assert_eq!(mount_point.get_mount_flags(), MsFlags::MS_NOSUID | MsFlags::MS_NODEV);
         assert!(parser.next().is_none());
     }
 
