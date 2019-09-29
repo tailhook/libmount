@@ -1,12 +1,11 @@
-use std::io::{self, Write, Cursor};
+use std::io::{Write, Cursor};
 use std::fmt;
 use std::str::from_utf8;
-use std::ffi::CString;
+use std::ffi::{CString, CStr};
 use std::path::Path;
 
-use libc::{c_void, uid_t, gid_t, mode_t, c_char};
-use libc::mount;
-use nix::mount::{MsFlags};
+use libc::{uid_t, gid_t, mode_t};
+use nix::mount::{MsFlags, mount};
 
 use {OSError, Error};
 use util::{path_to_cstring, as_path};
@@ -116,17 +115,13 @@ impl Tmpfs {
     pub fn bare_mount(self) -> Result<(), OSError> {
         let mut options = self.format_options();
         options.push(0);
-        let rc = unsafe { mount(
-                b"tmpfs\0".as_ptr() as *const c_char,
-                self.target.as_ptr(),
-                b"tmpfs\0".as_ptr() as *const c_char,
-                self.flags.bits(),
-                options.as_ptr() as *const c_void) };
-        if rc < 0 {
-            Err(OSError::from_io(io::Error::last_os_error(), Box::new(self)))
-        } else {
-            Ok(())
-        }
+        mount(
+            Some(CStr::from_bytes_with_nul(b"tmpfs\0").unwrap()),
+            &*self.target,
+            Some(CStr::from_bytes_with_nul(b"tmpfs\0").unwrap()),
+            self.flags,
+            Some(&*options)
+        ).map_err(|err| OSError::from_nix(err, Box::new(self)))
     }
 
     /// Mount the tmpfs and explain error immediately

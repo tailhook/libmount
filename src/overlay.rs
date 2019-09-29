@@ -1,12 +1,11 @@
-use std::io;
 use std::fmt;
 use std::path::{Path, PathBuf};
 use std::fs::metadata;
-use std::ffi::CString;
+use std::ffi::{CStr, CString};
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::ffi::OsStrExt;
 
-use libc::{mount, c_void, c_char};
+use nix::mount::{MsFlags, mount};
 
 use util::{path_to_cstring, as_path};
 use {OSError, Error};
@@ -82,17 +81,13 @@ impl Overlay {
             append_escape(&mut options, w);
         }
         options.push(b'\0');
-        let rc = unsafe { mount(
-                b"overlay\0".as_ptr() as *const c_char,
-                self.target.as_ptr(),
-                b"overlay\0".as_ptr() as *const c_char,
-                0,
-                options.as_ptr() as *const c_void) };
-        if rc < 0 {
-            Err(OSError::from_io(io::Error::last_os_error(), Box::new(self)))
-        } else {
-            Ok(())
-        }
+        mount(
+            Some(CStr::from_bytes_with_nul(b"overlay\0").unwrap()),
+            &*self.target,
+            Some(CStr::from_bytes_with_nul(b"overlay\0").unwrap()),
+            MsFlags::empty(),
+            Some(&*options),
+        ).map_err(|err| OSError::from_nix(err, Box::new(self)))
     }
 
     /// Execute an overlay mount and explain the error immediately

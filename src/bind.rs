@@ -1,12 +1,9 @@
-use std::io;
 use std::fmt;
-use std::ptr::null;
-use std::ffi::{CString, OsStr};
+use std::ffi::{CStr, CString, OsStr};
 use std::os::unix::ffi::OsStrExt;
 use std::path::Path;
 
-use libc::mount;
-use nix::mount::MsFlags;
+use nix::mount::{MsFlags, mount};
 
 use {OSError, Error};
 use util::{path_to_cstring, as_path};
@@ -65,15 +62,14 @@ impl BindMount {
         if self.recursive {
             flags = flags | MsFlags::MS_REC;
         }
-        let rc = unsafe { mount(
-                self.source.as_ptr(),
-                self.target.as_ptr(),
-                null(),
-                flags.bits(),
-                null()) };
-        if rc < 0 {
-            return Err(
-                OSError::from_io(io::Error::last_os_error(), Box::new(self)));
+        if let Err(err) = mount(
+            Some(&*self.source),
+            &*self.target,
+            None::<&CStr>,
+            flags,
+            None::<&CStr>,
+        ) {
+            return Err(OSError::from_nix(err, Box::new(self)));
         }
         if self.readonly {
             try!(Remount::new(OsStr::from_bytes(self.target.as_bytes()))
