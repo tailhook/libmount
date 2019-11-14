@@ -114,7 +114,6 @@ impl Tmpfs {
     /// Mount the tmpfs
     pub fn bare_mount(self) -> Result<(), OSError> {
         let mut options = self.format_options();
-        options.push(0);
         mount(
             Some(CStr::from_bytes_with_nul(b"tmpfs\0").unwrap()),
             &*self.target,

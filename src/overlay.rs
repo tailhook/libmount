@@ -80,7 +80,6 @@ impl Overlay {
             options.extend(b",workdir=");
             append_escape(&mut options, w);
         }
-        options.push(b'\0');
         mount(
             Some(CStr::from_bytes_with_nul(b"overlay\0").unwrap()),
             &*self.target,
