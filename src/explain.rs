@@ -6,7 +6,7 @@ use std::path::Path;
 use nix::unistd::getuid;
 
 
-pub trait Explainable: Display + Debug {
+pub trait Explainable: Display + Debug + Send + Sync {
     fn explain(&self) -> String;
 }
 

@@ -65,14 +65,14 @@ enum MountError {
 /// path.
 ///
 #[derive(Debug)]
-pub struct OSError(MountError, Box<dyn Explainable>);
+pub struct OSError(MountError, Box<dyn Explainable + Send + Sync + 'static>);
 
 impl OSError {
-    fn from_remount(err: RemountError, explain: Box<dyn Explainable>) -> OSError {
+    fn from_remount(err: RemountError, explain: Box<dyn Explainable + Send + Sync + 'static>) -> OSError {
         OSError(MountError::Remount(err), explain)
     }
 
-    fn from_nix(err: nix::Error, explain: Box<dyn Explainable>) -> OSError {
+    fn from_nix(err: nix::Error, explain: Box<dyn Explainable + Send + Sync + 'static>) -> OSError {
         OSError(
             MountError::Io(
                 err.as_errno().map_or_else(|| io::Error::new(io::ErrorKind::Other, err), io::Error::from),
@@ -85,4 +85,4 @@ impl OSError {
 /// The error holder which contains as much information about why failure
 /// happens as the library implementors could gain
 #[derive(Debug)]
-pub struct Error(Box<dyn Explainable>, io::Error, String);
+pub struct Error(Box<dyn Explainable + Send + Sync + 'static>, io::Error, String);
