@@ -60,7 +60,7 @@ impl BindMount {
     pub fn bare_mount(self) -> Result<(), OSError> {
         let mut flags = MsFlags::MS_BIND;
         if self.recursive {
-            flags = flags | MsFlags::MS_REC;
+            flags |= MsFlags::MS_REC;
         }
         if let Err(err) = mount(
             Some(&*self.source),
@@ -101,7 +101,7 @@ impl Explainable for BindMount {
         [
             format!("source: {}", exists(as_path(&self.source))),
             format!("target: {}", exists(as_path(&self.target))),
-            format!("{}", user()),
+            user().to_string(),
         ].join(", ")
     }
 }

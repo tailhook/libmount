@@ -245,7 +245,7 @@ impl Explainable for Remount {
     fn explain(&self) -> String {
         [
             format!("path: {}", exists(&self.path)),
-            format!("{}", user()),
+            user().to_string(),
         ].join(", ")
     }
 }

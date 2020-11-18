@@ -147,8 +147,8 @@ impl Explainable for Overlay {
             info.push(format!("workdir: {}", exists(&wdir)));
 
             if let (Some(u), Some(w)) = (umeta, wmeta) {
-                info.push(format!("{}", if u.dev() == w.dev()
-                    { "same-fs" } else { "different-fs" }));
+                info.push(if u.dev() == w.dev()
+                    { "same-fs" } else { "different-fs" }.to_string());
             }
             if udir.starts_with(wdir) {
                 info.push("upperdir-prefix-of-workdir".to_string());
@@ -157,7 +157,7 @@ impl Explainable for Overlay {
             }
             info.push(format!("target: {}", exists(as_path(&self.target))));
         }
-        if self.lowerdirs.len() < 1 {
+        if self.lowerdirs.is_empty() {
             info.push("no-lowerdirs".to_string());
         } else if self.upperdir.is_none() && self.lowerdirs.len() < 2 {
             info.push("single-lowerdir".to_string());

@@ -108,12 +108,12 @@ impl Tmpfs {
             }
             write!(cur, "gid={}", gid).unwrap();
         }
-        return cur.into_inner();
+        cur.into_inner()
     }
 
     /// Mount the tmpfs
     pub fn bare_mount(self) -> Result<(), OSError> {
-        let mut options = self.format_options();
+        let options = self.format_options();
         mount(
             Some(CStr::from_bytes_with_nul(b"tmpfs\0").unwrap()),
             &*self.target,
@@ -141,7 +141,7 @@ impl Explainable for Tmpfs {
     fn explain(&self) -> String {
         [
             format!("target: {}", exists(as_path(&self.target))),
-            format!("{}", user()),
+            user().to_string(),
         ].join(", ")
     }
 }

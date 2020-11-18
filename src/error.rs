@@ -32,7 +32,7 @@ impl fmt::Display for OSError {
 }
 
 impl StdError for OSError {
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&dyn StdError> {
         Some(&self.0)
     }
     fn description(&self) -> &str {
@@ -47,7 +47,7 @@ impl fmt::Display for Error {
 }
 
 impl StdError for Error {
-    fn cause(&self) -> Option<&StdError> {
+    fn cause(&self) -> Option<&dyn StdError> {
         Some(&self.1)
     }
     fn description(&self) -> &str {
