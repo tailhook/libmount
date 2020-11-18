@@ -4,6 +4,7 @@ description = """
     The type-safe wrapper around mount system call
 """
 license = "MIT/Apache-2.0"
+edition = "2018"
 readme = "README.md"
 keywords = ["linux", "container", "mount", "volume", "filesystem"]
 homepage = "http://github.com/tailhook/libmount"

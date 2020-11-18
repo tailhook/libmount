@@ -3,7 +3,7 @@ use std::fmt;
 use std::error::Error as StdError;
 
 use crate::{OSError, Error, MountError};
-use remount::RemountError;
+use crate::remount::RemountError;
 
 impl OSError {
     /// Convert error to the one providing extra useful information

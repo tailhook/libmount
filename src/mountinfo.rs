@@ -172,16 +172,16 @@ pub(crate) fn parse_mount_point<'a>(row: &'a [u8])
         return Ok(None);
     }
 
-    let (mount_id, row) = try!(parse_int(row));
-    let (parent_id, row) = try!(parse_int(row));
-    let (major, minor, row) = try!(parse_major_minor(row));
-    let (root, row) = try!(parse_os_str(row));
-    let (mount_point, row) = try!(parse_os_str(row));
-    let (mount_options, row) = try!(parse_os_str(row));
-    let (optional_fields, row) = try!(parse_optional(row));
-    let (fstype, row) = try!(parse_os_str(row));
-    let (mount_source, row) = try!(parse_os_str(row));
-    let (super_options, _) = try!(parse_os_str(row));
+    let (mount_id, row) = parse_int(row)?;
+    let (parent_id, row) = parse_int(row)?;
+    let (major, minor, row) = parse_major_minor(row)?;
+    let (root, row) = parse_os_str(row)?;
+    let (mount_point, row) = parse_os_str(row)?;
+    let (mount_options, row) = parse_os_str(row)?;
+    let (optional_fields, row) = parse_optional(row)?;
+    let (fstype, row) = parse_os_str(row)?;
+    let (mount_source, row) = parse_os_str(row)?;
+    let (super_options, _) = parse_os_str(row)?;
     // TODO: should we ignore extra fields?
     Ok(Some(MountPoint {
         mount_id: mount_id,
@@ -235,38 +235,38 @@ fn parse_field<'a>(data: &'a [u8], delimit: &'a [u8])
 fn parse_os_str<'a>(data: &'a [u8])
     -> Result<(Cow<'a, OsStr>, &'a [u8]), ParseRowError>
 {
-    let (field, tail) = try!(parse_field(data, b" "));
+    let (field, tail) = parse_field(data, b" ")?;
     Ok((unescape_octals(OsStr::from_bytes(field)), tail))
 }
 
 fn parse_int(data: &[u8])
     -> Result<(c_ulong, &[u8]), ParseRowError>
 {
-    let (field, tail) = try!(parse_field(data, b" "));
-    let v = try!(std::str::from_utf8(field).map_err(|e| {
+    let (field, tail) = parse_field(data, b" ")?;
+    let v = std::str::from_utf8(field).map_err(|e| {
         ParseRowError(format!("Cannot parse integer {:?}: {}",
-            String::from_utf8_lossy(field).into_owned(), e))}));
+            String::from_utf8_lossy(field).into_owned(), e))})?;
 
-    let v = try!(c_ulong::from_str_radix(v, 10).map_err(|e| {
+    let v = c_ulong::from_str_radix(v, 10).map_err(|e| {
         ParseRowError(format!("Cannot parse integer {:?}: {}",
-            String::from_utf8_lossy(field).into_owned(), e))}));
+            String::from_utf8_lossy(field).into_owned(), e))})?;
     Ok((v, tail))
 }
 
 fn parse_major_minor(data: &[u8])
     -> Result<(c_ulong, c_ulong, &[u8]), ParseRowError>
 {
-    let (major_field, data) = try!(parse_field(data, b":"));
-    let (minor_field, tail) = try!(parse_field(data, b" "));
-    let (major, _) = try!(parse_int(major_field));
-    let (minor, _) = try!(parse_int(minor_field));
+    let (major_field, data) = parse_field(data, b":")?;
+    let (minor_field, tail) = parse_field(data, b" ")?;
+    let (major, _) = parse_int(major_field)?;
+    let (minor, _) = parse_int(minor_field)?;
     Ok((major, minor, tail))
 }
 
 fn parse_optional<'a>(data: &'a [u8])
     -> Result<(Cow<'a, OsStr>, &'a [u8]), ParseRowError>
 {
-    let (field, tail) = try!(parse_field(data, b"- "));
+    let (field, tail) = parse_field(data, b"- ")?;
     let field = rstrip_whitespaces(field);
     Ok((unescape_octals(OsStr::from_bytes(field)), tail))
 }

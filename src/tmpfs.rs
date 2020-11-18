@@ -7,9 +7,9 @@ use std::path::Path;
 use libc::{uid_t, gid_t, mode_t};
 use nix::mount::{MsFlags, mount};
 
-use {OSError, Error};
-use util::{path_to_cstring, as_path};
-use explain::{Explainable, exists, user};
+use crate::{OSError, Error};
+use crate::util::{path_to_cstring, as_path};
+use crate::explain::{Explainable, exists, user};
 
 
 #[derive(Debug, Clone, Copy)]

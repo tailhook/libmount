@@ -34,12 +34,12 @@ pub mod mountinfo;
 
 use std::io;
 
-use explain::Explainable;
+use crate::explain::Explainable;
 pub use bind::BindMount;
 pub use overlay::Overlay;
 pub use tmpfs::Tmpfs;
 pub use modify::Move;
-pub use remount::{Remount,RemountError};
+pub use crate::remount::{Remount,RemountError};
 
 #[derive(Debug, thiserror::Error)]
 #[allow(missing_docs)]

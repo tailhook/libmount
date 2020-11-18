@@ -7,9 +7,9 @@ use std::os::unix::ffi::OsStrExt;
 
 use nix::mount::{MsFlags, mount};
 
-use util::{path_to_cstring, as_path};
-use {OSError, Error};
-use explain::{Explainable, exists, user};
+use crate::util::{path_to_cstring, as_path};
+use crate::{OSError, Error};
+use crate::explain::{Explainable, exists, user};
 
 
 /// An overlay mount point
