@@ -22,10 +22,6 @@
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
 
-extern crate libc;
-extern crate nix;
-extern crate fs_err;
-
 mod util;
 mod error;
 mod explain;
@@ -39,12 +35,11 @@ pub mod mountinfo;
 use std::io;
 
 use explain::Explainable;
-use remount::RemountError;
 pub use bind::BindMount;
 pub use overlay::Overlay;
 pub use tmpfs::Tmpfs;
 pub use modify::Move;
-pub use remount::Remount;
+pub use remount::{Remount,RemountError};
 
 #[derive(Debug, thiserror::Error)]
 #[allow(missing_docs)]

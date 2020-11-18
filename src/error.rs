@@ -2,7 +2,7 @@ use std::io;
 use std::fmt;
 use std::error::Error as StdError;
 
-use {OSError, Error, MountError};
+use crate::{OSError, Error, MountError};
 use remount::RemountError;
 
 impl OSError {
