@@ -32,11 +32,8 @@ impl fmt::Display for OSError {
 }
 
 impl StdError for OSError {
-    fn cause(&self) -> Option<&dyn StdError> {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
         Some(&self.0)
-    }
-    fn description(&self) -> &str {
-        self.0.description()
     }
 }
 
@@ -47,10 +44,7 @@ impl fmt::Display for Error {
 }
 
 impl StdError for Error {
-    fn cause(&self) -> Option<&dyn StdError> {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
         Some(&self.1)
-    }
-    fn description(&self) -> &str {
-       self.1.description()
     }
 }

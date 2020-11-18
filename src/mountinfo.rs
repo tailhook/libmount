@@ -48,7 +48,7 @@ impl ParseError {
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Parse error at line {}: {}\n{}",
-            self.row_num, self.description(), self.row)
+            self.row_num, self, self.row)
     }
 }
 
