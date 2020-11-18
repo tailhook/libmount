@@ -1,7 +1,7 @@
 use std::io;
 use std::fmt;
 use std::ffi::CStr;
-use std::fs::File;
+use fs_err::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::env::current_dir;
@@ -67,23 +67,17 @@ fn apply_flag(flags: MsFlags, flag: MsFlags, set: Option<bool>) -> MsFlags {
     }
 }
 
-quick_error! {
-    #[derive(Debug)]
-    pub enum RemountError {
-        Io(msg: String, err: io::Error) {
-            cause(err)
-            display("{}: {}", msg, err)
-            description(err.description())
-            from(err: io::Error) -> (String::new(), err)
-        }
-        ParseMountInfo(err: String) {
-            display("{}", err)
-            from()
-        }
-        UnknownMountPoint(path: PathBuf) {
-            display("Cannot find mount point: {:?}", path)
-        }
-    }
+#[derive(Debug, thiserror::Error)]
+#[allow(missing_docs)]
+pub enum RemountError {
+    #[error(transparent)]
+    Io(#[from] io::Error),
+
+    #[error("{0}")]
+    ParseMountInfo(String),
+
+    #[error("Cannot find mount point: {0:?}")]
+    UnknownMountPoint(PathBuf),
 }
 
 impl Remount {
@@ -266,12 +260,8 @@ fn get_mountpoint_flags(path: &Path) -> Result<MsFlags, RemountError> {
     };
     let mut mountinfo_content = Vec::with_capacity(4 * 1024);
     let mountinfo_path = Path::new("/proc/self/mountinfo");
-    let mut mountinfo_file = try!(File::open(mountinfo_path)
-        .map_err(|e| RemountError::Io(
-            format!("Cannot open file: {:?}", mountinfo_path), e)));
-    try!(mountinfo_file.read_to_end(&mut mountinfo_content)
-        .map_err(|e| RemountError::Io(
-            format!("Cannot read file: {:?}", mountinfo_path), e)));
+    let mut mountinfo_file = File::open(mountinfo_path)?;
+    mountinfo_file.read_to_end(&mut mountinfo_content)?;
     match get_mountpoint_flags_from(&mountinfo_content, &mount_path) {
         Ok(Some(flags)) => Ok(flags),
         Ok(None) => Err(RemountError::UnknownMountPoint(mount_path)),

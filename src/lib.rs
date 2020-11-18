@@ -24,7 +24,7 @@
 
 extern crate libc;
 extern crate nix;
-#[macro_use] extern crate quick_error;
+extern crate fs_err;
 
 mod util;
 mod error;
@@ -46,18 +46,13 @@ pub use tmpfs::Tmpfs;
 pub use modify::Move;
 pub use remount::Remount;
 
-quick_error! {
-    #[derive(Debug)]
-    enum MountError {
-        Io(err: io::Error) {
-            cause(err)
-            from()
-        }
-        Remount(err: RemountError) {
-            cause(err)
-            from()
-        }
-    }
+#[derive(Debug, thiserror::Error)]
+#[allow(missing_docs)]
+enum MountError {
+    #[error(transparent)]
+    Io(#[from] io::Error),
+    #[error(transparent)]
+    Remount(#[from] RemountError),
 }
 
 /// The raw os error
@@ -94,8 +89,5 @@ impl OSError {
 
 /// The error holder which contains as much information about why failure
 /// happens as the library implementors could gain
-///
-/// This type only provides `Display` for now, but some programmatic interface
-/// is expected in future.
 #[derive(Debug)]
 pub struct Error(Box<Explainable>, io::Error, String);

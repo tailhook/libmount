@@ -1,6 +1,6 @@
 use std::fmt;
 use std::path::{Path, PathBuf};
-use std::fs::metadata;
+use fs_err::metadata;
 use std::ffi::{CStr, CString};
 use std::os::unix::fs::MetadataExt;
 use std::os::unix::ffi::OsStrExt;

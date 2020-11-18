@@ -12,9 +12,10 @@ version = "0.1.15"
 authors = ["paul@colomiets.name"]
 
 [dependencies]
-libc = "0.2.28"
-nix = "0.14"
-quick-error = "1.2.0"
+libc = "^0.2.30"
+nix = "0.16"
+thiserror = "1.0"
+fs-err = "*"
 
 [dev-dependencies]
 argparse = "0.2.1"

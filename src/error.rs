@@ -11,8 +11,8 @@ impl OSError {
         let text = self.1.explain();
         match self.0 {
             MountError::Io(e) => Error(self.1, e, text),
-            MountError::Remount(RemountError::Io(msg, io_err)) => {
-                Error(self.1, io_err, format!("{}, {}", msg, text))
+            MountError::Remount(RemountError::Io(io_err)) => {
+                Error(self.1, io_err, text)
             },
             MountError::Remount(err) => {
                 let text = format!("{}, {}", &err, text);

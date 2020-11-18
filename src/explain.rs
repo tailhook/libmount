@@ -1,5 +1,5 @@
 use std::io::Read;
-use std::fs::File;
+use fs_err::File;
 use std::fmt::{Display, Debug};
 use std::path::Path;
 
