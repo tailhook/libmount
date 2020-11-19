@@ -293,7 +293,7 @@ mod test {
 
     use nix::mount::MsFlags;
 
-    use Error;
+    use crate::Error;
     use super::{Remount, RemountError, MountFlags};
     use super::{get_mountpoint_flags, get_mountpoint_flags_from};
 
