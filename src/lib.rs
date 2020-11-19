@@ -22,10 +22,6 @@
 #![warn(missing_debug_implementations)]
 #![warn(missing_docs)]
 
-extern crate libc;
-extern crate nix;
-#[macro_use] extern crate quick_error;
-
 mod util;
 mod error;
 mod explain;
@@ -38,26 +34,20 @@ pub mod mountinfo;
 
 use std::io;
 
-use explain::Explainable;
-use remount::RemountError;
+use crate::explain::Explainable;
 pub use bind::BindMount;
 pub use overlay::Overlay;
 pub use tmpfs::Tmpfs;
 pub use modify::Move;
-pub use remount::Remount;
+pub use crate::remount::{Remount,RemountError};
 
-quick_error! {
-    #[derive(Debug)]
-    enum MountError {
-        Io(err: io::Error) {
-            cause(err)
-            from()
-        }
-        Remount(err: RemountError) {
-            cause(err)
-            from()
-        }
-    }
+#[derive(Debug, thiserror::Error)]
+#[allow(missing_docs)]
+enum MountError {
+    #[error(transparent)]
+    Io(#[from] io::Error),
+    #[error(transparent)]
+    Remount(#[from] RemountError),
 }
 
 /// The raw os error
@@ -75,14 +65,14 @@ quick_error! {
 /// path.
 ///
 #[derive(Debug)]
-pub struct OSError(MountError, Box<Explainable>);
+pub struct OSError(MountError, Box<dyn Explainable + Send + Sync + 'static>);
 
 impl OSError {
-    fn from_remount(err: RemountError, explain: Box<Explainable>) -> OSError {
+    fn from_remount(err: RemountError, explain: Box<dyn Explainable + Send + Sync + 'static>) -> OSError {
         OSError(MountError::Remount(err), explain)
     }
 
-    fn from_nix(err: nix::Error, explain: Box<Explainable>) -> OSError {
+    fn from_nix(err: nix::Error, explain: Box<dyn Explainable + Send + Sync + 'static>) -> OSError {
         OSError(
             MountError::Io(
                 err.as_errno().map_or_else(|| io::Error::new(io::ErrorKind::Other, err), io::Error::from),
@@ -94,8 +84,5 @@ impl OSError {
 
 /// The error holder which contains as much information about why failure
 /// happens as the library implementors could gain
-///
-/// This type only provides `Display` for now, but some programmatic interface
-/// is expected in future.
 #[derive(Debug)]
-pub struct Error(Box<Explainable>, io::Error, String);
+pub struct Error(Box<dyn Explainable + Send + Sync + 'static>, io::Error, String);

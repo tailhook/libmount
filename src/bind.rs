@@ -5,10 +5,10 @@ use std::path::Path;
 
 use nix::mount::{MsFlags, mount};
 
-use {OSError, Error};
-use util::{path_to_cstring, as_path};
-use explain::{Explainable, exists, user};
-use remount::Remount;
+use crate::{OSError, Error};
+use crate::util::{path_to_cstring, as_path};
+use crate::explain::{Explainable, exists, user};
+use crate::remount::Remount;
 
 
 /// A mount bind definition
@@ -60,7 +60,7 @@ impl BindMount {
     pub fn bare_mount(self) -> Result<(), OSError> {
         let mut flags = MsFlags::MS_BIND;
         if self.recursive {
-            flags = flags | MsFlags::MS_REC;
+            flags |= MsFlags::MS_REC;
         }
         if let Err(err) = mount(
             Some(&*self.source),
@@ -72,10 +72,10 @@ impl BindMount {
             return Err(OSError::from_nix(err, Box::new(self)));
         }
         if self.readonly {
-            try!(Remount::new(OsStr::from_bytes(self.target.as_bytes()))
+            Remount::new(OsStr::from_bytes(self.target.as_bytes()))
                 .bind(true)
                 .readonly(true)
-                .bare_remount());
+                .bare_remount()?;
         }
         Ok(())
     }
@@ -89,7 +89,7 @@ impl BindMount {
 impl fmt::Display for BindMount {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         if self.recursive {
-            try!(write!(fmt, "recursive "));
+            write!(fmt, "recursive ")?;
         }
         write!(fmt, "bind mount {:?} -> {:?}",
             as_path(&self.source), as_path(&self.target))
@@ -101,7 +101,7 @@ impl Explainable for BindMount {
         [
             format!("source: {}", exists(as_path(&self.source))),
             format!("target: {}", exists(as_path(&self.target))),
-            format!("{}", user()),
+            user().to_string(),
         ].join(", ")
     }
 }

@@ -1,12 +1,12 @@
 use std::io::Read;
-use std::fs::File;
+use fs_err::File;
 use std::fmt::{Display, Debug};
 use std::path::Path;
 
 use nix::unistd::getuid;
 
 
-pub trait Explainable: Display + Debug {
+pub trait Explainable: Display + Debug + Send + Sync {
     fn explain(&self) -> String;
 }
 

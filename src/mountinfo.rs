@@ -1,6 +1,6 @@
 //! This module contains parser for /proc/PID/mountinfo
 //!
-use std;
+
 use std::fmt;
 use std::ffi::{OsStr, OsString};
 use std::os::unix::ffi::{OsStrExt, OsStringExt};
@@ -23,7 +23,7 @@ impl fmt::Display for ParseRowError {
 
 impl Error for ParseRowError {
     fn description(&self) -> &str {
-        return &self.0;
+        &self.0
     }
 }
 
@@ -38,9 +38,9 @@ pub struct ParseError {
 impl ParseError {
     fn new(msg: String, row_num: usize, row: String) -> ParseError {
         ParseError {
-            msg: msg,
-            row_num: row_num,
-            row: row,
+            msg,
+            row_num,
+            row,
         }
     }
 }
@@ -48,13 +48,13 @@ impl ParseError {
 impl fmt::Display for ParseError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "Parse error at line {}: {}\n{}",
-            self.row_num, self.description(), self.row)
+            self.row_num, self, self.row)
     }
 }
 
 impl Error for ParseError {
     fn description(&self) -> &str {
-        return &self.msg;
+        &self.msg
     }
 }
 
@@ -73,7 +73,7 @@ impl<'a> Parser<'a> {
     /// `data` should contain whole contents of `mountinfo` file of any process
     pub fn new(data: &'a [u8]) -> Parser<'a> {
         Parser {
-            data: data,
+            data,
             row_num: 0,
             exhausted: false,
         }
@@ -172,29 +172,29 @@ pub(crate) fn parse_mount_point<'a>(row: &'a [u8])
         return Ok(None);
     }
 
-    let (mount_id, row) = try!(parse_int(row));
-    let (parent_id, row) = try!(parse_int(row));
-    let (major, minor, row) = try!(parse_major_minor(row));
-    let (root, row) = try!(parse_os_str(row));
-    let (mount_point, row) = try!(parse_os_str(row));
-    let (mount_options, row) = try!(parse_os_str(row));
-    let (optional_fields, row) = try!(parse_optional(row));
-    let (fstype, row) = try!(parse_os_str(row));
-    let (mount_source, row) = try!(parse_os_str(row));
-    let (super_options, _) = try!(parse_os_str(row));
+    let (mount_id, row) = parse_int(row)?;
+    let (parent_id, row) = parse_int(row)?;
+    let (major, minor, row) = parse_major_minor(row)?;
+    let (root, row) = parse_os_str(row)?;
+    let (mount_point, row) = parse_os_str(row)?;
+    let (mount_options, row) = parse_os_str(row)?;
+    let (optional_fields, row) = parse_optional(row)?;
+    let (fstype, row) = parse_os_str(row)?;
+    let (mount_source, row) = parse_os_str(row)?;
+    let (super_options, _) = parse_os_str(row)?;
     // TODO: should we ignore extra fields?
     Ok(Some(MountPoint {
-        mount_id: mount_id,
-        parent_id: parent_id,
-        major: major,
-        minor: minor,
-        root: root,
-        mount_point: mount_point,
-        mount_options: mount_options,
-        optional_fields: optional_fields,
-        fstype: fstype,
-        mount_source: mount_source,
-        super_options: super_options,
+        mount_id,
+        parent_id,
+        major,
+        minor,
+        root,
+        mount_point,
+        mount_options,
+        optional_fields,
+        fstype,
+        mount_source,
+        super_options,
     }))
 }
 
@@ -211,7 +211,7 @@ fn is_comment_line(row: &[u8]) -> bool {
         }
         return false;
     }
-    return false;
+    false
 }
 
 fn rstrip_cr(row: &[u8]) -> &[u8] {
@@ -226,7 +226,7 @@ fn parse_field<'a>(data: &'a [u8], delimit: &'a [u8])
     -> Result<(&'a [u8], &'a [u8]), ParseRowError>
 {
     if data.is_empty() {
-        return Err(ParseRowError(format!("Expected more fields")));
+        return Err(ParseRowError("Expected more fields".to_string()));
     }
     let data = lstrip_whitespaces(data);
     Ok(split_by(data, delimit))
@@ -235,38 +235,38 @@ fn parse_field<'a>(data: &'a [u8], delimit: &'a [u8])
 fn parse_os_str<'a>(data: &'a [u8])
     -> Result<(Cow<'a, OsStr>, &'a [u8]), ParseRowError>
 {
-    let (field, tail) = try!(parse_field(data, b" "));
+    let (field, tail) = parse_field(data, b" ")?;
     Ok((unescape_octals(OsStr::from_bytes(field)), tail))
 }
 
 fn parse_int(data: &[u8])
     -> Result<(c_ulong, &[u8]), ParseRowError>
 {
-    let (field, tail) = try!(parse_field(data, b" "));
-    let v = try!(std::str::from_utf8(field).map_err(|e| {
+    let (field, tail) = parse_field(data, b" ")?;
+    let v = std::str::from_utf8(field).map_err(|e| {
         ParseRowError(format!("Cannot parse integer {:?}: {}",
-            String::from_utf8_lossy(field).into_owned(), e))}));
+            String::from_utf8_lossy(field).into_owned(), e))})?;
 
-    let v = try!(c_ulong::from_str_radix(v, 10).map_err(|e| {
+    let v = c_ulong::from_str_radix(v, 10).map_err(|e| {
         ParseRowError(format!("Cannot parse integer {:?}: {}",
-            String::from_utf8_lossy(field).into_owned(), e))}));
+            String::from_utf8_lossy(field).into_owned(), e))})?;
     Ok((v, tail))
 }
 
 fn parse_major_minor(data: &[u8])
     -> Result<(c_ulong, c_ulong, &[u8]), ParseRowError>
 {
-    let (major_field, data) = try!(parse_field(data, b":"));
-    let (minor_field, tail) = try!(parse_field(data, b" "));
-    let (major, _) = try!(parse_int(major_field));
-    let (minor, _) = try!(parse_int(minor_field));
+    let (major_field, data) = parse_field(data, b":")?;
+    let (minor_field, tail) = parse_field(data, b" ")?;
+    let (major, _) = parse_int(major_field)?;
+    let (minor, _) = parse_int(minor_field)?;
     Ok((major, minor, tail))
 }
 
 fn parse_optional<'a>(data: &'a [u8])
     -> Result<(Cow<'a, OsStr>, &'a [u8]), ParseRowError>
 {
-    let (field, tail) = try!(parse_field(data, b"- "));
+    let (field, tail) = parse_field(data, b"- ")?;
     let field = rstrip_whitespaces(field);
     Ok((unescape_octals(OsStr::from_bytes(field)), tail))
 }
@@ -277,7 +277,7 @@ fn lstrip_whitespaces(v: &[u8]) -> &[u8] {
             return &v[i..];
         }
     }
-    return &v[0..0];
+    &v[0..0]
 }
 
 fn rstrip_whitespaces(v: &[u8]) -> &[u8] {
@@ -286,7 +286,7 @@ fn rstrip_whitespaces(v: &[u8]) -> &[u8] {
             return &v[..i + 1];
         }
     }
-    return &v[0..0];
+    &v[0..0]
 }
 
 fn split_by<'a, 'b>(v: &'a [u8], needle: &'b [u8]) -> (&'a [u8], &'a [u8]) {
@@ -301,7 +301,7 @@ fn split_by<'a, 'b>(v: &'a [u8], needle: &'b [u8]) -> (&'a [u8], &'a [u8]) {
         }
         i += 1;
     }
-    return (&v[0..], &v[0..0]);
+    (&v[0..], &v[0..0])
 }
 
 fn unescape_octals(s: &OsStr) -> Cow<OsStr> {
@@ -342,7 +342,7 @@ fn is_octal_encoding(v: &[u8]) -> bool {
 }
 
 fn is_oct(c: u8) -> bool {
-    c >= b'0' && c <= b'7'
+    (b'0'..=b'7').contains(&c)
 }
 
 fn parse_octal(v: &[u8]) -> u8 {

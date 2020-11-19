@@ -1,7 +1,7 @@
 use std::io;
 use std::fmt;
 use std::ffi::CStr;
-use std::fs::File;
+use fs_err::File;
 use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::env::current_dir;
@@ -9,10 +9,10 @@ use std::default::Default;
 
 use nix::mount::{MsFlags, mount};
 
-use {OSError, Error};
-use util::path_to_cstring;
-use explain::{Explainable, exists, user};
-use mountinfo::{parse_mount_point};
+use crate::{OSError, Error};
+use crate::util::path_to_cstring;
+use crate::explain::{Explainable, exists, user};
+use crate::mountinfo::{parse_mount_point};
 
 /// A remount definition
 ///
@@ -67,23 +67,17 @@ fn apply_flag(flags: MsFlags, flag: MsFlags, set: Option<bool>) -> MsFlags {
     }
 }
 
-quick_error! {
-    #[derive(Debug)]
-    pub enum RemountError {
-        Io(msg: String, err: io::Error) {
-            cause(err)
-            display("{}: {}", msg, err)
-            description(err.description())
-            from(err: io::Error) -> (String::new(), err)
-        }
-        ParseMountInfo(err: String) {
-            display("{}", err)
-            from()
-        }
-        UnknownMountPoint(path: PathBuf) {
-            display("Cannot find mount point: {:?}", path)
-        }
-    }
+#[derive(Debug, thiserror::Error)]
+#[allow(missing_docs)]
+pub enum RemountError {
+    #[error(transparent)]
+    Io(#[from] io::Error),
+
+    #[error("{0}")]
+    ParseMountInfo(String),
+
+    #[error("Cannot find mount point: {0:?}")]
+    UnknownMountPoint(PathBuf),
 }
 
 impl Remount {
@@ -188,51 +182,51 @@ impl fmt::Display for MountFlags {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut prefix = "";
         if let Some(true) = self.bind {
-            try!(write!(fmt, "{}bind", prefix));
+            write!(fmt, "{}bind", prefix)?;
             prefix = ",";
         }
         if let Some(true) = self.readonly {
-            try!(write!(fmt, "{}ro", prefix));
+            write!(fmt, "{}ro", prefix)?;
             prefix = ",";
         }
         if let Some(true) = self.nodev {
-            try!(write!(fmt, "{}nodev", prefix));
+            write!(fmt, "{}nodev", prefix)?;
             prefix = ",";
         }
         if let Some(true) = self.noexec {
-            try!(write!(fmt, "{}noexec", prefix));
+            write!(fmt, "{}noexec", prefix)?;
             prefix = ",";
         }
         if let Some(true) = self.nosuid {
-            try!(write!(fmt, "{}nosuid", prefix));
+            write!(fmt, "{}nosuid", prefix)?;
             prefix = ",";
         }
         if let Some(true) = self.noatime {
-            try!(write!(fmt, "{}noatime", prefix));
+            write!(fmt, "{}noatime", prefix)?;
             prefix = ",";
         }
         if let Some(true) = self.nodiratime {
-            try!(write!(fmt, "{}nodiratime", prefix));
+            write!(fmt, "{}nodiratime", prefix)?;
             prefix = ",";
         }
         if let Some(true) = self.relatime {
-            try!(write!(fmt, "{}relatime", prefix));
+            write!(fmt, "{}relatime", prefix)?;
             prefix = ",";
         }
         if let Some(true) = self.strictatime {
-            try!(write!(fmt, "{}strictatime", prefix));
+            write!(fmt, "{}strictatime", prefix)?;
             prefix = ",";
         }
         if let Some(true) = self.dirsync {
-            try!(write!(fmt, "{}dirsync", prefix));
+            write!(fmt, "{}dirsync", prefix)?;
             prefix = ",";
         }
         if let Some(true) = self.synchronous {
-            try!(write!(fmt, "{}sync", prefix));
+            write!(fmt, "{}sync", prefix)?;
             prefix = ",";
         }
         if let Some(true) = self.mandlock {
-            try!(write!(fmt, "{}mand", prefix));
+            write!(fmt, "{}mand", prefix)?;
         }
         Ok(())
     }
@@ -241,7 +235,7 @@ impl fmt::Display for MountFlags {
 impl fmt::Display for Remount {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         if !self.flags.apply_to_flags(MsFlags::empty()).is_empty() {
-            try!(write!(fmt, "{} ", self.flags));
+            write!(fmt, "{} ", self.flags)?;
         }
         write!(fmt, "remount {:?}", &self.path)
     }
@@ -251,7 +245,7 @@ impl Explainable for Remount {
     fn explain(&self) -> String {
         [
             format!("path: {}", exists(&self.path)),
-            format!("{}", user()),
+            user().to_string(),
         ].join(", ")
     }
 }
@@ -260,18 +254,14 @@ fn get_mountpoint_flags(path: &Path) -> Result<MsFlags, RemountError> {
     let mount_path = if path.is_absolute() {
         path.to_path_buf()
     } else {
-        let mut mpath = try!(current_dir());
+        let mut mpath = current_dir()?;
         mpath.push(path);
         mpath
     };
     let mut mountinfo_content = Vec::with_capacity(4 * 1024);
     let mountinfo_path = Path::new("/proc/self/mountinfo");
-    let mut mountinfo_file = try!(File::open(mountinfo_path)
-        .map_err(|e| RemountError::Io(
-            format!("Cannot open file: {:?}", mountinfo_path), e)));
-    try!(mountinfo_file.read_to_end(&mut mountinfo_content)
-        .map_err(|e| RemountError::Io(
-            format!("Cannot read file: {:?}", mountinfo_path), e)));
+    let mut mountinfo_file = File::open(mountinfo_path)?;
+    mountinfo_file.read_to_end(&mut mountinfo_content)?;
     match get_mountpoint_flags_from(&mountinfo_content, &mount_path) {
         Ok(Some(flags)) => Ok(flags),
         Ok(None) => Err(RemountError::UnknownMountPoint(mount_path)),
@@ -303,7 +293,7 @@ mod test {
 
     use nix::mount::MsFlags;
 
-    use Error;
+    use crate::Error;
     use super::{Remount, RemountError, MountFlags};
     use super::{get_mountpoint_flags, get_mountpoint_flags_from};
 

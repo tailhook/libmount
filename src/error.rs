@@ -2,8 +2,8 @@ use std::io;
 use std::fmt;
 use std::error::Error as StdError;
 
-use {OSError, Error, MountError};
-use remount::RemountError;
+use crate::{OSError, Error, MountError};
+use crate::remount::RemountError;
 
 impl OSError {
     /// Convert error to the one providing extra useful information
@@ -11,8 +11,8 @@ impl OSError {
         let text = self.1.explain();
         match self.0 {
             MountError::Io(e) => Error(self.1, e, text),
-            MountError::Remount(RemountError::Io(msg, io_err)) => {
-                Error(self.1, io_err, format!("{}, {}", msg, text))
+            MountError::Remount(RemountError::Io(io_err)) => {
+                Error(self.1, io_err, text)
             },
             MountError::Remount(err) => {
                 let text = format!("{}, {}", &err, text);
@@ -32,11 +32,8 @@ impl fmt::Display for OSError {
 }
 
 impl StdError for OSError {
-    fn cause(&self) -> Option<&StdError> {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
         Some(&self.0)
-    }
-    fn description(&self) -> &str {
-        self.0.description()
     }
 }
 
@@ -47,10 +44,7 @@ impl fmt::Display for Error {
 }
 
 impl StdError for Error {
-    fn cause(&self) -> Option<&StdError> {
+    fn source(&self) -> Option<&(dyn StdError + 'static)> {
         Some(&self.1)
-    }
-    fn description(&self) -> &str {
-       self.1.description()
     }
 }

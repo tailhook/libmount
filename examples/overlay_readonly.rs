@@ -1,7 +1,7 @@
-extern crate libmount;
-extern crate argparse;
-extern crate env_logger;
-#[macro_use] extern crate log;
+
+
+
+use log::error;
 
 use std::path::PathBuf;
 use std::process::exit;

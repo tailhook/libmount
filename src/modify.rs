@@ -4,9 +4,9 @@ use std::path::Path;
 
 use nix::mount::{MsFlags, mount};
 
-use {OSError, Error};
-use util::{path_to_cstring, as_path};
-use explain::{Explainable, exists};
+use crate::{OSError, Error};
+use crate::util::{path_to_cstring, as_path};
+use crate::explain::{Explainable, exists};
 
 /// A move operation definition
 ///
